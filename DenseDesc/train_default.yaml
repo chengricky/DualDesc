@@ -1,0 +1,25 @@
+name: default_model
+
+# wrapper
+extractor_type: WResNet18 #Net4Conv3Pool128DimAvgRes
+num_branch: 2
+loss_margin: 0.5
+loss_type: hem  # hem, shem
+hem_interval: 16
+
+hem_thresh_begin: 50.0
+hem_thresh_end: 10.0
+hem_thresh_decay_rate: 5
+
+# metric
+match_thresh: 5
+
+# dataset and dataloader
+trainset: [coco, sun]
+batch_size: 8
+num_workers: 4
+
+# solver
+epoch_steps: 750
+record_step: 50
+epoch_num: 50
