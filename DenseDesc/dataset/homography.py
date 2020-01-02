@@ -1,5 +1,6 @@
-import math
-import time
+"""
+This file is adapted from Yuan Liu's work.
+"""
 
 import cv2
 import numpy as np
@@ -7,23 +8,35 @@ from transforms3d.euler import euler2mat
 from scipy.stats import truncnorm
 
 
-def get_homography(angx,angy,angz,scale,focal=200,x0=128,y0=128):
-    K=np.asarray([[focal,0,x0 ],
-                  [0,focal,y0 ],
-                  [0,    0,1.0]],np.float32)
-    K_inv=np.linalg.inv(K)
-    R=euler2mat(angx,angy,angz,axes='sxyz')
-    K_scale=K.copy()
-    K_scale[2,2]=scale
-    H=np.matmul(np.matmul(K_scale,R),K_inv)
+def get_homography(angx, angy, angz, scale, focal=200, x0=128, y0=128):
+    """
+    Build homography given rotation, scaling, translation transformations.
+    :param angx:
+    :param angy:
+    :param angz:
+    :param scale:
+    :param focal:
+    :param x0:
+    :param y0:
+    :return:
+    """
+    K = np.asarray([[focal, 0, x0],
+                    [0, focal, y0],
+                    [0,    0, 1.0]], np.float32)
+    K_inv = np.linalg.inv(K)
+    R = euler2mat(angx, angy, angz, axes='sxyz')
+    K_scale = K.copy()
+    K_scale[2, 2] = scale
+    H = np.matmul(np.matmul(K_scale, R), K_inv)
     return H
 
-def compute_homography(h,w,perspective=True,scaling=True,rotation=True,translation=True,
-                       min_patch_ratio=1.0,max_patch_ratio=1.0,perspective_amplitude_x=0.2,perspective_amplitude_y=0.2,
-                       scaling_amplitude=0.1,max_angle=np.pi/6, translation_overflow=0.,
-                       allow_artifacts=False):
-    patch_ratio = truncnorm.rvs(-2,2,loc=max_patch_ratio,scale=(max_patch_ratio-min_patch_ratio)/2.0)
-    patch_ratio = 2.0-patch_ratio if patch_ratio>=1.0 else patch_ratio
+
+def compute_homography(h, w, perspective=True, scaling=True, rotation=True, translation=True,
+                       min_patch_ratio=1.0, max_patch_ratio=1.0, perspective_amplitude_x=0.2,
+                       perspective_amplitude_y=0.2, scaling_amplitude=0.1, max_angle=np.pi/6,
+                       translation_overflow=0., allow_artifacts=False):
+    patch_ratio = truncnorm.rvs(-2, 2, loc=max_patch_ratio, scale=(max_patch_ratio-min_patch_ratio)/2.0)
+    patch_ratio = 2.0-patch_ratio if patch_ratio >= 1.0 else patch_ratio
 
     pts1 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
     margin = (1 - patch_ratio) / 2
@@ -84,6 +97,7 @@ def compute_homography(h,w,perspective=True,scaling=True,rotation=True,translati
     pts2*=shape
     return cv2.getPerspectiveTransform(pts2.astype(np.float32),pts1.astype(np.float32))
 
+
 def compute_homography_discrete(h, w, scale=True, rotation=True, translation=True, perspective=True,
                                 base_scale_ratio=2.0, scale_factor_range=1, max_scale_disturb=0.0,
                                 max_angle=np.pi/6, translation_overflow=0.,
@@ -132,6 +146,7 @@ def compute_homography_discrete(h, w, scale=True, rotation=True, translation=Tru
     pts2*=shape
     return cv2.getPerspectiveTransform(pts2.astype(np.float32),pts1.astype(np.float32)), scale_offset
 
+
 def rotate_pts(pts, max_angle,sample_type='rvs'):
     if sample_type=='rvs':
         angle=truncnorm.rvs(-2,2,loc=0,scale=max_angle/2)
@@ -142,27 +157,31 @@ def rotate_pts(pts, max_angle,sample_type='rvs'):
     center=np.mean(pts,0,keepdims=True)
     return np.matmul(pts-center,rot_m.transpose())+center
 
+
 def perspective_pts(pts, h, w, perspective_amplitude=0.2, direction='lr', perspective_short_amplitude=0.2):
-    displacement = np.random.uniform(-perspective_amplitude,perspective_amplitude) # truncnorm.rvs(-1, 1, loc=0, scale=perspective_amplitude)
+    displacement = np.random.uniform(-perspective_amplitude, perspective_amplitude) # truncnorm.rvs(-1, 1, loc=0, scale=perspective_amplitude)
     ds = np.random.uniform(-perspective_short_amplitude, 0)
-    if direction=='lr':
-        displacement*=h
-        ds*=w
+    if direction == 'lr':
+        displacement *= h
+        ds *= w
         pts += np.asarray([[ds, displacement],[ds, -displacement],[-ds, displacement],[-ds, -displacement]], np.float32)
     elif direction=='ud':
         displacement*=w
         ds*=h
         pts += np.asarray([[displacement, ds],[-displacement, -ds],[displacement, -ds], [-displacement, ds]], np.float32)
-    else: raise NotImplementedError
+    else:
+        raise NotImplementedError
     return pts
+
 
 def scale_pts(pts,max_scale_ratio,base_ratio=2):
     scale=base_ratio**np.random.uniform(-max_scale_ratio,max_scale_ratio)
     center=np.mean(pts,0,keepdims=True)
     return (pts-center)*scale+center
 
+
 def translate_pts(pts, h, w, overflow_val=0.2):
-    n_pts=pts.copy()
+    n_pts = pts.copy()
 
     n_pts[:,0]/=w
     n_pts[:,1]/=h
@@ -187,45 +206,53 @@ def translate_pts(pts, h, w, overflow_val=0.2):
 
     return pts_off
 
+
 def nearest_identity(pts, h, w):
-    pts=scale_pts(pts, 0.15)
-    pts=rotate_pts(pts, 5 / 180 * np.pi)
-    pts=translate_pts(pts, h, w, 0.05)
+    pts = scale_pts(pts, 0.15)
+    pts = rotate_pts(pts, 5 / 180 * np.pi)
+    pts = translate_pts(pts, h, w, 0.05)
     return pts
+
 
 def nearest_identity_strictly(pts, h, w):
-    pts=scale_pts(pts, 0.05)
-    pts=rotate_pts(pts, 5 / 180 * np.pi)
-    # pts=translate_pts(pts, h, w, 0.05)
+    pts = scale_pts(pts, 0.05)
+    pts = rotate_pts(pts, 5 / 180 * np.pi)
+    # pts = translate_pts(pts, h, w, 0.05)
     return pts
+
 
 def left_right_move(pts, h, w):
-    pts=perspective_pts(pts, h, w, 0.3, 'lr', 0.3)
-    pts=scale_pts(pts, 0.15)
-    pts=rotate_pts(pts, 5 / 180 * np.pi)
+    pts = perspective_pts(pts, h, w, 0.3, 'lr', 0.3)
+    pts = scale_pts(pts, 0.15)
+    pts = rotate_pts(pts, 5 / 180 * np.pi)
     return pts
+
 
 def up_down_move(pts, h, w):
-    pts=perspective_pts(pts, h, w, 0.2, 'ud', 0.2)
-    pts=scale_pts(pts, 0.15)
-    pts=rotate_pts(pts, 5 / 180 * np.pi)
+    pts = perspective_pts(pts, h, w, 0.2, 'ud', 0.2)
+    pts = scale_pts(pts, 0.15)
+    pts = rotate_pts(pts, 5 / 180 * np.pi)
     return pts
+
 
 def forward_backward_move(pts, h, w):
-    pts=scale_pts(pts,1.0)
-    pts=rotate_pts(pts,30/180*np.pi)
-    pts=translate_pts(pts,h,w,0.05)
+    pts = scale_pts(pts,1.0)
+    pts = rotate_pts(pts,30/180*np.pi)
+    pts = translate_pts(pts,h,w,0.05)
     return pts
+
 
 def rotate_move(pts, h, w):
-    pts=scale_pts(pts,0.15)
-    pts=rotate_pts(pts,60/180*np.pi,'uniform')
+    pts = scale_pts(pts,0.15)
+    pts = rotate_pts(pts,60/180*np.pi,'uniform')
     return pts
 
+
 def scale_move(pts, h, w):
-    pts=scale_pts(pts,1.5)
-    pts=rotate_pts(pts,5/180*np.pi)
+    pts = scale_pts(pts,1.5)
+    pts = rotate_pts(pts,5/180*np.pi)
     return pts
+
 
 def sample_homography(h, w):
     pts1 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
@@ -239,6 +266,7 @@ def sample_homography(h, w):
     H=cv2.getPerspectiveTransform(pts2.astype(np.float32),pts1.astype(np.float32))
     return H
 
+
 def sample_homography_v2(h, w):
     pts1 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
     pts2 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
@@ -251,6 +279,7 @@ def sample_homography_v2(h, w):
     H=cv2.getPerspectiveTransform(pts2.astype(np.float32),pts1.astype(np.float32))
     return H
 
+
 def sample_homography_test(h, w):
     pts1 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
     pts2 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
@@ -261,6 +290,7 @@ def sample_homography_test(h, w):
     pts2=rotate_pts(pts1,90/180*np.pi)
     H=cv2.getPerspectiveTransform(pts2.astype(np.float32),pts1.astype(np.float32))
     return H
+
 
 def sample_identity(h,w):
     pts1 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])
@@ -273,12 +303,14 @@ def sample_identity(h,w):
     H=cv2.getPerspectiveTransform(pts2.astype(np.float32),pts1.astype(np.float32))
     return H
 
+
 def compute_similar_affine(H,x,y):
     x_h=np.asarray([x,y,1])
     x_n=np.asarray([[x,y]])
     x_p=perspective_transform(x_n,H)[0] # [2,]
     z_h=np.dot(H[2,:],x_h)
     return (H[:2,:2]-x_p[:,None] @ H[2,:2][None,:])/z_h
+
 
 def compute_similar_affine_batch(H,pts):
     x_h=np.concatenate([pts,np.ones([pts.shape[0],1])],1)  # n,3
@@ -287,16 +319,19 @@ def compute_similar_affine_batch(H,pts):
 
     return (H[:2,:2][None,:,:]-x_p[:,:, None] @ H[2,:2][None,:])/z_h[:,None,None]
 
+
 def rotate_45(pts,h,w):
-    pts=rotate_pts(pts,45/180*np.pi,'uniform')
-    # pts=scale_pts(pts,0.5)
-    pts=translate_pts(pts,h,w,0.05)
+    pts = rotate_pts(pts,45/180*np.pi,'uniform')
+    # pts = scale_pts(pts,0.5)
+    pts = translate_pts(pts,h,w,0.05)
     return pts
 
+
 def scale_half(pts,h,w):
-    pts=scale_pts(pts,0.5)
-    pts=translate_pts(pts,h,w,0.05)
+    pts = scale_pts(pts,0.5)
+    pts = translate_pts(pts,h,w,0.05)
     return pts
+
 
 def sample_4_rotate_3_scale(h, w):
     pts1 = np.asarray([[0., 0.], [0., 1.], [1., 1.], [1., 0.]])

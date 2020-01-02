@@ -1,16 +1,13 @@
 import cv2
-from pyflann import FLANN
-
 import numpy as np
-
-from utils.extend_utils.extend_utils_fn import find_nearest_point_idx
+from DenseDesc.utils.extend_utils.extend_utils_fn import find_nearest_point_idx
 
 
 def flann_match(feats_que, feats_ref, use_cuda=True):
     if use_cuda:
         idxs = find_nearest_point_idx(feats_ref, feats_que)
     else:
-        flann = FLANN()
+        flann = cv2.flann()
         idxs, dists = flann.nn(feats_ref, feats_que, 1, algorithm='linear', trees=4)
 
     return idxs

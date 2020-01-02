@@ -20,36 +20,40 @@ from DenseDesc.train.train_tools import *
 
 class Trainer:
     def _init_config(self):
-        with open(os.path.join(path_cfg.project_dir, 'DenseDesc/train_default.yaml'), 'r') as f:
-            self.config = yaml.load(f)
+        with open(os.path.join(path_cfg.project_dir, 'train_default.yaml'), 'r') as f:
+            self.config = yaml.load(f, Loader=yaml.FullLoader)
         self.name = self.config['name']
-        with open(os.path.join(path_cfg.project_dir, 'DenseDesc/dataset_default.yaml'), 'r') as f:
-            self.dataset_config = yaml.load(f)
-        self.recorder = Recorder(os.path.join('data', 'record', self.name),
-                                 os.path.join('data', 'record', self.name + '.log'))
-        self.model_dir = os.path.join('data', 'model', self.name)
+        with open(os.path.join(path_cfg.project_dir, 'dataset_default.yaml'), 'r') as f:
+            self.dataset_config = yaml.load(f, Loader=yaml.FullLoader)
+        self.recorder = Recorder(os.path.join('DenseDesc', 'data', 'record', self.name),
+                                 os.path.join('DenseDesc', 'data', 'record', self.name + '.log'))
+        self.model_dir = os.path.join('DenseDesc', 'data', 'model', self.name)
+        print('==>Loaded Configuration File.')
 
     def _init_network(self):
         self.network = FeatureNetworkWrapper(cfg=self.config)
         self.network = DataParallel(self.network).cuda()
         self.extractor = self.network.module.extractor
         self.optim = torch.optim.Adam(self.extractor.parameters())
-        self.model_dir = os.path.join('data', 'model', self.name)
+        self.model_dir = os.path.join('DenseDesc', 'data', 'model', self.name)
         self.epoch = 0
         self._load_model(self.model_dir, -1, True, True)
+        print('==>Loaded Network Model.')
 
     def _init_dataset(self):
-        database = CorrespondenceDatabase()
-        self.database = database
+        self.database = CorrespondenceDatabase()
         train_set = []
         for name in self.config['trainset']:
-            train_set += database.__getattribute__(name + "_set")
+            train_set += self.database.__getattribute__(name + "_set")
+        print('==>database ok!')
         self.train_set = CorrespondenceDataset(self.dataset_config, train_set, self.database.background_pths)
+        print('==>dataset ok!')
         self.train_set = DataLoader(self.train_set, self.config['batch_size'],
                                     True, num_workers=self.config['num_workers'])
+        print('==>Loaded Dataset.')
 
-    def __init__(self, train_cfg_file):
-        self._init_config(train_cfg_file)
+    def __init__(self):
+        self._init_config()
         self._init_network()
         self._init_dataset()
 
@@ -95,12 +99,12 @@ class Trainer:
 
     def train_model(self):
         reset_learning_rate(self.optim, self._get_warm_up_lr())
-        begin_epoch=self.epoch
-        for epoch in range(begin_epoch,self.config['epoch_num']):
-            self.test_hpatch_match(self.database.hv_set,'view-hp','superpoint')
+        begin_epoch = self.epoch
+        for epoch in range(begin_epoch, self.config['epoch_num']):
+            self.test_hpatch_match(self.database.hv_set, 'view-hp', 'dog')
             self.train_epoch()
             self._save_model()
-            self.epoch+=1
+            self.epoch += 1
 
     def _get_hem_thresh(self):
         hem_thresh = max(self.config['hem_thresh_begin'] - self.epoch * self.config['hem_thresh_decay_rate'],
@@ -170,7 +174,7 @@ class Trainer:
             subpths = pth.split('/')
             npzfn = '_'.join([subpths[-2], subpths[-1].split('.')[0]]) + '.npz'
             data_dir = subpths[-3]
-            fn = os.path.join('data', model_name, data_dir)
+            fn = os.path.join('DenseDesc', 'data', model_name, data_dir)
             fn = os.path.join(fn, npzfn)
             if os.path.exists(fn):
                 npzfile = np.load(fn)

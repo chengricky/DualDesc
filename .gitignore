@@ -1,5 +1,6 @@
 .idea/
 data/
+DenseDesc/data/
 runs/
 checkpoints*/
 ckpt_*/

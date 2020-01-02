@@ -9,17 +9,17 @@ hem_interval: 16
 
 hem_thresh_begin: 50.0
 hem_thresh_end: 10.0
-hem_thresh_decay_rate: 5
+hem_thresh_decay_rate: 0.5
 
 # metric
 match_thresh: 5
 
 # dataset and dataloader
-trainset: [coco, sun]
-batch_size: 8
+trainset: [sun]
+batch_size: 16
 num_workers: 4
 
 # solver
 epoch_steps: 750
 record_step: 50
-epoch_num: 50
+epoch_num: 100

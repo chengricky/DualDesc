@@ -1,18 +1,24 @@
+"""
+Get Image pair
+"""
 import torch
 
-from dataset.augmentation_utils import *
-from dataset.homography import *
+from DenseDesc.dataset.augmentation_utils import *
+from DenseDesc.dataset.homography import *
 from torch.utils.data import Dataset
 from torchvision.transforms import ColorJitter
 
 from skimage.io import imread
 
-from match.match_utils import detect_dog_keypoints, perspective_transform
+from DenseDesc.match.match_utils import detect_dog_keypoints, perspective_transform
+
+import cv2
 
 
 def normalize_image(img):
     img=(img.transpose([2,0,1]).astype(np.float32)-127.0)/128.0
     return torch.tensor(img,dtype=torch.float32)
+
 
 def gray_repeats(img_raw):
     if len(img_raw.shape) == 2: img_raw = np.repeat(img_raw[:, :, None], 3, axis=2)
@@ -60,36 +66,41 @@ class CorrespondenceDataset(Dataset):
         return self.decode(self.database[index])
 
     def decode_homography(self, data):
+        """
+        Generate original and H-transformed images and correspondeces from data
+        :param data:
+        :return:
+        """
+
         img_raw = imread(data['img_pth'])
-        th, tw = self.args['h'],self.args['w']
+        th, tw = self.args['h'], self.args['w']
         # if img_raw is [h,w] repeats it to [h,w,3]
         img_raw = gray_repeats(img_raw)
 
         # sample part of input image
-        if np.random.random()<0.8:
-            img_raw,_,_=self.get_image_region(img_raw,th*np.random.uniform(0.8,1.2),tw*np.random.uniform(0.8,1.2))
+        if np.random.random() < 0.8:
+            img_raw, _, _ = self.get_image_region(img_raw,
+                                                  th*np.random.uniform(0.8, 1.2), tw*np.random.uniform(0.8, 1.2))
 
-        #
         H = self.generate_homography()
 
         # warp image
-        img0=cv2.resize(img_raw,(tw,th),interpolation=cv2.INTER_LINEAR)          # [h,w,3]
-        img1=cv2.warpPerspective(img0,H,(tw,th),flags=cv2.INTER_LINEAR)          # [h,w,3]
+        img0 = cv2.resize(img_raw, (tw, th), interpolation=cv2.INTER_LINEAR)          # [h,w,3]
+        img1 = cv2.warpPerspective(img0, H, (tw, th), flags=cv2.INTER_LINEAR)          # [h,w,3]
 
         # add random background
         if self.args["add_background"]:
-            img1=self.add_homography_background(img1, data['img_pth'], H)
+            img1 = self.add_homography_background(img1, data['img_pth'], H)
         else:
-            # todo: (set background to 127, which is 0 after normalization, instead of 0, which is -127 after normalization?)
-            img1=self.add_black_background(img1,H)
+            img1 = self.add_black_background(img1, H)
 
         # get ground truth
-        pix_pos0, pix_pos1 = self.sample_ground_truth(img0,H)
+        pix_pos0, pix_pos1 = self.sample_ground_truth(img0, H)
         # scale_offset, rotate_offset = self.compute_scale_rotate_offset(H,pix_pos0)
         return img0, img1, pix_pos0, pix_pos1
 
     def decode(self, data):
-        if data['type']=='homography':
+        if data['type'] == 'homography':  # SUN or COCO dataset
             img0, img1, pix_pos0, pix_pos1 = self.decode_homography(data)
         else:
             raise NotImplementedError
@@ -118,34 +129,61 @@ class CorrespondenceDataset(Dataset):
         bpth = self.generate_background_pth(cur_path)
 
         h, w, _ = img.shape
-        bimg = cv2.resize(imread(bpth), (w, h))
-        if len(bimg.shape) == 2: bimg = np.repeat(bimg[:, :, None], 3, axis=2)
-        if bimg.shape[2] > 3: bimg = bimg[:, :, :3]
+        bimg = imread(bpth)
+        bimg = cv2.resize(bimg, (w, h))
+
+        if len(bimg.shape) == 2:
+            bimg = np.repeat(bimg[:, :, None], 3, axis=2)
+        if bimg.shape[2] > 3:
+            bimg = bimg[:, :, :3]
         msk_tgt = cv2.warpPerspective(np.ones([h, w], np.uint8), H, (w, h), flags=cv2.INTER_NEAREST).astype(np.bool)
         img[np.logical_not(msk_tgt)] = bimg[np.logical_not(msk_tgt)]
         return img
 
     @staticmethod
     def add_black_background(img, H):
+        """
+        Set background to 127, which is 0 after normalization, instead of 0, which is -127 after normalization.
+        :param img:
+        :param H:
+        :return:
+        """
         h, w, _ = img.shape
         msk_tgt = cv2.warpPerspective(np.ones([h, w], np.uint8), H, (w, h), flags=cv2.INTER_NEAREST).astype(np.bool)
         img[np.logical_not(msk_tgt)] = 127
         return img
 
     def get_homography_correspondence(self, h, w, th, tw, H):
+        """
+        Return the corresponded H-transformed points of the meshgrid
+        :param h:
+        :param w:
+        :param th:
+        :param tw:
+        :param H:
+        :return:
+        """
         coords = [np.expand_dims(item, 2) for item in np.meshgrid(np.arange(w), np.arange(h))]
         coords = np.concatenate(coords, 2).astype(np.float32)
-        if self.args['perturb']: coords += np.random.randint(0, self.args['perturb_max'] + 1, coords.shape)
+        if self.args['perturb']:
+            coords += np.random.randint(0, self.args['perturb_max'] + 1, coords.shape)
         coords_target = cv2.perspectiveTransform(np.reshape(coords, [1, -1, 2]), H.astype(np.float32))
         coords_target = np.reshape(coords_target, [h, w, 2])
-
-        source_mask = np.logical_and(np.logical_and(0 <= coords_target[:, :, 0], coords_target[:, :, 0] < tw ),
-                                     np.logical_and(0 <= coords_target[:, :, 1], coords_target[:, :, 1] < th ))
+        # Set zero to the points out of image range after Homography transformation
+        source_mask = np.logical_and(np.logical_and(0 <= coords_target[:, :, 0], coords_target[:, :, 0] < tw),
+                                     np.logical_and(0 <= coords_target[:, :, 1], coords_target[:, :, 1] < th))
         coords_target[np.logical_not(source_mask)] = 0
 
         return coords_target, source_mask
 
     def sample_correspondence(self, img, pix_pos, msk):
+        """
+        According to series of rules, the meshgrid correspondences are filtered.
+        :param img:
+        :param pix_pos:
+        :param msk:
+        :return: the correpondences in the original and the transformed images
+        """
         h, w = img.shape[0], img.shape[1]
         val_msk = []
         if self.args['test_canny']:
@@ -166,7 +204,7 @@ class CorrespondenceDataset(Dataset):
                 kps_msk[kps[:, 1], kps[:, 0]] = True
             val_msk.append(kps_msk)
 
-        if self.args['test_edge']:
+        if self.args['test_edge']:  # get rid of points close to the image fringes
             edge_thresh = self.args['edge_thresh']
             edge_msk = np.ones_like(msk)
             edge_msk[:edge_thresh, :] = False
@@ -210,16 +248,32 @@ class CorrespondenceDataset(Dataset):
         return pix_pos0, pix_pos1
 
     def sample_ground_truth(self, img, H, img_tgt=None):
-        h,w,_=img.shape
-        if img_tgt is not None: th,tw,_=img_tgt.shape
-        else: th,tw=h,w
+        """
+        Generate high-quality point correspondences with the given Homography
+        :param img:
+        :param H:
+        :param img_tgt:
+        :return:
+        """
+        h, w, _ = img.shape
+        if img_tgt is not None:
+            th, tw, _ = img_tgt.shape
+        else:
+            th, tw = h, w
         pix_pos, msk = self.get_homography_correspondence(h, w, th, tw, H)
         pix_pos0, pix_pos1 = self.sample_correspondence(img, pix_pos, msk)
         return pix_pos0, pix_pos1
 
     @staticmethod
     def get_image_region(img, th, tw):
-        th, tw=int(th), int(tw)
+        """
+        Return the random cropped/original images with the designated size
+        :param img:
+        :param th:
+        :param tw:
+        :return:
+        """
+        th, tw = int(th), int(tw)
         h, w, _ = img.shape
         if h > th:
             hbeg = np.random.randint(0, h - th)
@@ -282,8 +336,9 @@ class CorrespondenceDataset(Dataset):
         return img0[hbeg0:hbeg0+th,wbeg0:wbeg0+tw], img1[hbeg1:hbeg1+th,wbeg1:wbeg1+tw], wbeg0, hbeg0, wbeg1, hbeg1
 
     def generate_background_pth(self, cur_pth):
-        bpth=self.background_pths[np.random.randint(0,len(self.background_pths))]
-        while bpth==cur_pth: bpth=self.background_pths[np.random.randint(0,len(self.background_pths))]
+        bpth = self.background_pths[np.random.randint(0, len(self.background_pths))]['img_pth']
+        while bpth == cur_pth:
+            bpth = self.background_pths[np.random.randint(0, len(self.background_pths))]['img_pth']
         return bpth
 
     def generate_homography(self):

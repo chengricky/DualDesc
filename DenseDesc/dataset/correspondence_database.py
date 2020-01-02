@@ -1,9 +1,13 @@
+"""
+Generate Image Paths for SUN / COCO / HPatches (image pairs with homography)
+"""
 import os
-from utils.config import cfg
+from DenseDesc.utils.config import cfg
 import numpy as np
 import pickle
 from skimage.io import imread, imsave
 import cv2
+
 
 def read_pickle(pkl_path):
     with open(pkl_path, 'rb') as f:
@@ -15,7 +19,21 @@ def save_pickle(data, pkl_path):
     with open(pkl_path, 'wb') as f:
         pickle.dump(data, f)
 
+
 class CorrespondenceDatabase:
+    @staticmethod
+    def get_SUN397_image_paths():
+        img_dir = os.path.join('/home/ricky/datasets', 'SUN397')
+        img_pths = []
+        with open(os.path.join(img_dir, 'ClassName.txt'), mode='r') as cls:
+            line = cls.readline()
+            while len(line) > 4:
+                sub_dir = img_dir + line[:-1]
+                img_pth = [os.path.join(sub_dir, fn) for fn in os.listdir(sub_dir)]
+                img_pths += img_pth
+                line = cls.readline()
+        return img_pths
+
     @staticmethod
     def get_SUN2012_image_paths():
         img_dir = os.path.join(cfg.data_dir, 'SUN2012Images', 'JPEGImages')
@@ -33,8 +51,7 @@ class CorrespondenceDatabase:
     @staticmethod
     def get_hpatch_sequence_database(name='resize', max_size=480):
         """
-        Get hpatches_resize if it exists,
-            else generate one
+        Get hpatches_resize if it exists, else generate one
         """
         def resize_and_save(pth_in, max_size, pth_out):
             img = imread(pth_in)
@@ -45,13 +62,14 @@ class CorrespondenceDatabase:
             imsave(pth_out, img)
             return ratio
 
-        root_dir = os.path.join(cfg.data_dir, 'hpatches_sequence')
+        root_dir = os.path.join(cfg.data_dir, 'hpatches-sequences-release')
         output_dir = os.path.join(cfg.data_dir, 'hpatches_{}'.format(name))
         pkl_file = os.path.join(output_dir, 'info.pkl')
         if os.path.exists(pkl_file):
             return read_pickle(pkl_file)
 
-        if not os.path.exists(output_dir): os.mkdir(output_dir)
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
         illumination_dataset = []
         viewpoint_dataset = []
         for dir in os.listdir(root_dir):
@@ -85,12 +103,14 @@ class CorrespondenceDatabase:
         return [{'type': 'homography', 'img_pth': img_pth} for img_pth in img_list]
 
     def __init__(self):
-        self.sun_set=self.generate_homography_database(self.get_SUN2012_image_paths())
+        # self.coco_set=self.generate_homography_database(self.get_COCO_image_paths())
+        # print('coco len {}'.format(len(self.coco_set)))
+
+        self.sun_set = self.generate_homography_database(self.get_SUN397_image_paths())
         print('sun len {}'.format(len(self.sun_set)))
-        self.coco_set=self.generate_homography_database(self.get_COCO_image_paths())
-        print('coco len {}'.format(len(self.coco_set)))
 
         self.hi_set, self.hv_set = self.get_hpatch_sequence_database()
 
-        img_dir = os.path.join(cfg.data_dir, 'SUN2012Images', 'JPEGImages')
-        self.background_pths = [os.path.join(img_dir, fn) for fn in os.listdir(img_dir)]
+        # img_dir = os.path.join(cfg.data_dir, 'SUN2012Images', 'JPEGImages')
+        # self.background_pths = [os.path.join(img_dir, fn) for fn in os.listdir(img_dir)]
+        self.background_pths = self.sun_set

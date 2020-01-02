@@ -1,10 +1,11 @@
 import torch
 import torch.nn.functional as F
 
-from network.network_utils import l2_normalize
+from DenseDesc.network.network_utils import l2_normalize
 
-from hard_mining.hard_example_mining_layer import hard_example_mining_layer, semi_hard_example_mining_layer, \
+from DenseDesc.hard_mining.hard_example_mining_layer import hard_example_mining_layer, semi_hard_example_mining_layer, \
     knn_hard_example_mining_layer, knn_semi_hard_example_mining_layer, knn_cuda, knn_cuda_permute
+
 
 def sample_hard_feature(feats, feats_pos, pix_pos, interval, thresh):
     '''
@@ -21,6 +22,7 @@ def sample_hard_feature(feats, feats_pos, pix_pos, interval, thresh):
     feats=feats.permute(0,2,3,1)
     feats_neg=feats[pix_neg[:,:,0],pix_neg[:,:,2],pix_neg[:,:,1]]   # b,n,f
     return feats_neg
+
 
 def sample_semi_hard_feature(feats, dis_pos, feats_pos, pix_pos, interval, thresh, margin):
     '''
@@ -40,6 +42,7 @@ def sample_semi_hard_feature(feats, dis_pos, feats_pos, pix_pos, interval, thres
     feats_neg=feats[pix_neg[:,:,0],pix_neg[:,:,2],pix_neg[:,:,1]]   # b,n,f
     return feats_neg
 
+
 def normalize_coordinates(coords, h, w):
     h=h-1
     w=w-1
@@ -49,6 +52,7 @@ def normalize_coordinates(coords, h, w):
     coords[:, :, 0]/= w / 2
     coords[:, :, 1]/= h / 2
     return coords
+
 
 def interpolate_feats(feats0, feats1, pix_pos0, pix_pos1):
     with torch.no_grad():
@@ -65,6 +69,7 @@ def interpolate_feats(feats0, feats1, pix_pos0, pix_pos1):
 
     return feats_pos0, feats_pos1
 
+
 def clamp_loss_all(loss):
     """
     max(loss, 0) with hard-negative mining
@@ -74,6 +79,7 @@ def clamp_loss_all(loss):
     total_num=1
     for k in loss.shape: total_num*=k
     return torch.sum(loss)/(num+1), num/total_num
+
 
 def triplet_loss_hem_as(feats0, feats1, pix_pos0, pix_pos1, interval, thresh, margin=0.0):
     '''
@@ -114,6 +120,7 @@ def triplet_loss_hem_as(feats0, feats1, pix_pos0, pix_pos1, interval, thresh, ma
 
     return loss00+loss01+loss10+loss11, (rate00+rate01+rate10+rate11)/4.0, \
            torch.mean(dist_pos), torch.mean(dist_neg00+dist_neg01+dist_neg10+dist_neg11)/4.0
+
 
 def triplet_loss_shem_as(feats0, feats1, pix_pos0, pix_pos1, interval, thresh, margin=0.0):
     '''
