@@ -34,7 +34,7 @@ class Trainer:
         self.network = FeatureNetworkWrapper(cfg=self.config)
         self.network = DataParallel(self.network).cuda()
         self.extractor = self.network.module.extractor
-        self.optim = torch.optim.Adam(self.extractor.parameters())
+        self.optim = torch.optim.Adam(self.extractor.parameters(), weight_decay=self.config['weight_decay'])
         self.model_dir = os.path.join('DenseDesc', 'data', 'model', self.name)
         self.epoch = 0
         self._load_model(self.model_dir, -1, True, True)
@@ -90,7 +90,7 @@ class Trainer:
 
     def _get_warm_up_lr(self):
         if self.epoch <= 10:
-            lr = 1e-4 * (self.epoch + 1)
+            lr = 1e-1 * (self.epoch + 1)
         elif self.epoch <= 20:
             lr = 1e-3
         else:  # self.epoch<50:
@@ -105,6 +105,8 @@ class Trainer:
             self.train_epoch()
             self._save_model()
             self.epoch += 1
+            adjust_learning_rate(self.optim, self.epoch, self.config['lr_decay_rate'],
+                                 self.config['lr_decay_epoch'], min_lr=1e-5)
 
     def _get_hem_thresh(self):
         hem_thresh = max(self.config['hem_thresh_begin'] - self.epoch * self.config['hem_thresh_decay_rate'],

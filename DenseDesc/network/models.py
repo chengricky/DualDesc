@@ -1,6 +1,7 @@
 from torch import nn
 from DenseDesc.network import wideresnet
 from DenseDesc.network.network_utils import l2_normalize
+from torchvision import models
 
 
 class Net4Conv3Pool128DimAvgRes(nn.Module):
@@ -66,10 +67,57 @@ def get_WResNet18(cfg):
     :param num_branch: how many blocks are got rid of from the network (back)
     :return:
     """
-    model_res_net = wideresnet.resnet18(num_classes=365)
+    model_res_net = wideresnet.resnet18(pretrained=True)
     if 'num_branch' not in cfg.keys():
         raise RuntimeError('The configuration file does not have the key `num_branch`.')
-    model_list = list(model_res_net.children())[:-1 * cfg['num_branch'] - 3]
+    model_list = list(model_res_net.children())[:-1 * cfg['num_branch'] - 2]
     model_list.append(L2_Norm_wrapper())
     base_net = nn.Sequential(*model_list)
+    return base_net
+
+
+def get_ResNet18(cfg):
+    """
+    return the ResNet18 layers for DenseDesc
+    :param num_branch: how many blocks are got rid of from the network (back)
+    :return:
+    """
+    model_res_net = models.resnet18(pretrained=True)
+    if 'num_branch' not in cfg.keys():
+        raise RuntimeError('The configuration file does not have the key `num_branch`.')
+    model_list = list(model_res_net.children())[:-1 * cfg['num_branch'] - 2]
+    model_list.append(L2_Norm_wrapper())
+    base_net = nn.Sequential(*model_list)
+    return base_net
+
+
+def get_MobileNetV2(cfg):
+    """
+    return the MobileNetV2 layers for DenseDesc
+    :param num_branch: how many blocks are got rid of from the network (back)
+    :return:
+    """
+    model_res_net = models.mobilenet_v2(pretrained=True)
+    if 'num_branch' not in cfg.keys():
+        raise RuntimeError('The configuration file does not have the key `num_branch`.')
+    model_list = list(model_res_net.features.children())[:cfg['num_branch']]
+    model_list.append(L2_Norm_wrapper())
+    base_net = nn.Sequential(*model_list)
+    return base_net
+
+
+def get_ShuffleNetV2(cfg):
+    """
+    return the ShuffleNetV2 layers for DenseDesc
+    :param num_branch: how many blocks are got rid of from the network (back)
+    :return:
+    """
+    model_net = models.shufflenet_v2_x1_0(pretrained=True)
+    if 'num_branch' not in cfg.keys():
+        raise RuntimeError('The configuration file does not have the key `num_branch`.')
+    model_list = list(model_net.children())[:cfg['num_branch']]
+    model_list.append(L2_Norm_wrapper())
+    base_net = nn.Sequential(*model_list)
+    print(base_net)
+    input('Please Confirm Base Net')
     return base_net

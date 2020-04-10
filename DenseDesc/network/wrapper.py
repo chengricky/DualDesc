@@ -1,14 +1,16 @@
 from torch import nn
 
 from DenseDesc.network.loss import triplet_loss_shem_as, triplet_loss_hem_as
-from DenseDesc.network.models import Net4Conv3Pool128DimAvgRes
-from DenseDesc.network.models import get_WResNet18
+from DenseDesc.network import models
 
 
 def build_extractor(cfg):
     name2extractor = {
-        'Net4Conv3Pool128DimAvgRes': Net4Conv3Pool128DimAvgRes,
-        'WResNet18': get_WResNet18,
+        'Net4Conv3Pool128DimAvgRes': models.Net4Conv3Pool128DimAvgRes,
+        'WResNet18': models.get_WResNet18,
+        'ResNet18': models.get_ResNet18,
+        'MobileNetV2': models.get_MobileNetV2,
+        'ShuffleNetV2': models.get_ShuffleNetV2,
     }
     return name2extractor[cfg['extractor_type']](cfg)
 

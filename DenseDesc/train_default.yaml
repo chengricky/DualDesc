@@ -1,25 +1,30 @@
-name: default_model
+name: ShuffleNetV2_model
 
 # wrapper
-extractor_type: WResNet18 #Net4Conv3Pool128DimAvgRes
-num_branch: 2
+extractor_type: ShuffleNetV2 #Net4Conv3Pool128DimAvgRes
+num_branch: 3
 loss_margin: 0.5
 loss_type: hem  # hem, shem
 hem_interval: 16
 
 hem_thresh_begin: 50.0
 hem_thresh_end: 10.0
-hem_thresh_decay_rate: 0.5
+hem_thresh_decay_rate: 5
 
 # metric
 match_thresh: 5
 
 # dataset and dataloader
-trainset: [sun]
-batch_size: 16
+trainset: [sun, coco]
+batch_size: 80
 num_workers: 4
 
 # solver
 epoch_steps: 750
 record_step: 50
 epoch_num: 100
+
+lr_decay_rate: 0.5
+lr_decay_epoch: 5
+
+weight_decay: 0

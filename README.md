@@ -1,19 +1,12 @@
-# The Unified Network for Scene Description and Scene Classification
+# Hierarchical Visual Localization Using Multi-modal Images 
 
-The code achieves the unified network with two branches for scene classification and scene description (NetVLAD). The two brahches of the network are trained separately on the classification dataset (Places-365) and the description dataset (Pittsburgh). The traied networks are combined together to test on multiple real-world datasets.
+The code achieves the network with global descriptor (Net-A-VLAD) and dense local descriptor. 
 
 If you use this code, please refer to the paper:
 ```
-Unifying Visual Localization and Scene Recognition for Assistive Navigation
+Hierarchical Visual Localization Using Multi-modal Images 
 ```
 
-The directory structure of this repository is:
-```
-|--ScenePlaceRecognition
-|----DataSet
-|----Place365
-|----UnifiedModelgit 
-```
 
 In this code, the backbones (Wide ResNet-18, MobileNet V2 and ShuffleNet V2) are supported in the unified network. 
 

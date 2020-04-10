@@ -1,9 +1,9 @@
 {
-    "h": 480,
-    "w": 640,
+    "h": 360,
+    "w": 480,
 
     ##########homography########
-    "use_superpoint": false,
+    "use_superpoint": true,
     "superpoint_refined": "homography",
     "min_patch_ratio": 0.5,
     "max_patch_ratio": 0.85,
