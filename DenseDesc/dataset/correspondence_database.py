@@ -42,9 +42,9 @@ class CorrespondenceDatabase:
 
     @staticmethod
     def get_COCO_image_paths():
-        img_dir = os.path.join(cfg.data_dir, 'coco', 'train2014')
+        img_dir = os.path.join('/home/ricky/datasets/COCO2014', 'train2014')
         img_pths = [os.path.join(img_dir, fn) for fn in os.listdir(img_dir)]
-        img_dir = os.path.join(cfg.data_dir, 'coco', 'val2014')
+        img_dir = os.path.join('/home/ricky/datasets/COCO2014', 'val2014')
         img_pths += [os.path.join(img_dir, fn) for fn in os.listdir(img_dir)]
         return img_pths
 
@@ -103,8 +103,8 @@ class CorrespondenceDatabase:
         return [{'type': 'homography', 'img_pth': img_pth} for img_pth in img_list]
 
     def __init__(self):
-        # self.coco_set=self.generate_homography_database(self.get_COCO_image_paths())
-        # print('coco len {}'.format(len(self.coco_set)))
+        self.coco_set=self.generate_homography_database(self.get_COCO_image_paths())
+        print('coco len {}'.format(len(self.coco_set)))
 
         self.sun_set = self.generate_homography_database(self.get_SUN397_image_paths())
         print('sun len {}'.format(len(self.sun_set)))
