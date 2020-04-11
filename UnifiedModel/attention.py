@@ -74,7 +74,7 @@ class DELF(nn.Module):
         if self.attention_nonlinear == 'softplus':
             x = self.softplus(x)
 
-        x = torch.mul(attention_feature_map, x.expand(-1, attention_feature_map.shape[1], -1, -1))
+        x_map = torch.mul(attention_feature_map, x.expand(-1, attention_feature_map.shape[1], -1, -1))
 
         # attention_outputs = self.perform_attention(attention_feature_map, feature_map)
         # attention_feat, attention_prob, attention_score = attention_outputs
@@ -90,5 +90,5 @@ class DELF(nn.Module):
         # indices = indices.expand(-1, Cf, -1)
         # feature_map_filtered = feature_map_flatten.gather(2, indices).unsqueeze(-1)
 
-        return x
+        return x_map, x
 

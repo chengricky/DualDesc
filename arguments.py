@@ -1,12 +1,13 @@
 # read and save the json file of training hyper-parameters
 import os
 import json
-
 import argparse
 
-parser = argparse.ArgumentParser(description='PlaceRecognitionTrainParameters')
+parser = argparse.ArgumentParser(description='AttentiveVLADArguments')
 parser.add_argument('--mode', type=str, default='train', help='Mode', choices=['train', 'cluster', 'test'])
 parser.add_argument('--saveDecs',  action='store_true', help='whether to save descriptors to files.')
+parser.add_argument('--saveDecsPath', type=str, default='/localresearch/PreciseLocalization/Dataset/YuQuanMultimodal/T3-Lib-res-a/',
+                    help='where to save descriptors to files.')
 parser.add_argument('--batchSize', type=int, default=3,
                     help='Number of triplets (query, pos, negs). Each triplet consists of 12 images.')
 parser.add_argument('--cacheBatchSize', type=int, default=24, help='Batch size for caching and testing')
@@ -55,9 +56,10 @@ parser.add_argument('--reduction', action='store_true', help='whether to perform
 
 
 def get_args():
-    # read arguments from command or json file
+    # read arguments from command
     opt = parser.parse_args()
-    restore_var = [ 'lr', 'lrStep', 'lrGamma', 'weightDecay', 'momentum', 'nGPU',
+    # read the following arguments from or json file
+    restore_var = ['lr', 'lrStep', 'lrGamma', 'weightDecay', 'momentum', 'nGPU',
                    'runsPath', 'savePath', 'arch', 'num_clusters', 'pooling', 'optim',
                    'margin', 'seed', 'patience']
     if opt.resume:
@@ -89,3 +91,48 @@ def read_arguments(opt, parser_, restore_var):
             print('Restored flags:', train_flags)
             opt_load = parser_.parse_args(train_flags, namespace=opt)
             return opt_load
+
+
+class RunningVariables:
+    """Global variables to run the code.
+
+    This class assembles the running variables for training the model.
+
+    Attributes:
+        _opt: arguments obtained from the command line.
+    """
+    def __init__(self, _opt):
+        self.opt = _opt
+        self.train_set = 0
+        self.whole_train_set = 0
+        self.whole_training_data_loader = 0
+        self.whole_test_set = 0
+        self.dataset = 0
+        self.model = 0
+        self.encoder_dim = 0
+        self.hook_dim = 0
+        self.device = 0
+        self.optimizer = None
+        self.criterion = None
+
+    def set_dataset(self, train_set_, whole_train_set_, whole_training_data_loader_, whole_test_set_, dataset_):
+        self.train_set = train_set_
+        self.whole_train_set = whole_train_set_
+        self.whole_training_data_loader = whole_training_data_loader_
+        self.whole_test_set = whole_test_set_
+        self.dataset = dataset_
+
+    def set_model(self, model_, encoder_dim_, hook_dim_):
+        self.model = model_
+        self.encoder_dim = encoder_dim_
+        self.hook_dim = hook_dim_
+
+    def set_device(self, device_):
+        self.device = device_
+
+    def set_optimizer(self, optimizer_):
+        self.optimizer = optimizer_
+
+    def set_criterion(self, criterion_):
+        self.criterion = criterion_
+

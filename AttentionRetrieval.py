@@ -1,5 +1,5 @@
 """
-Train the NetVLAD network with Attention module
+Train and test the NetVLAD network with Attention module
 """
 
 from __future__ import print_function
@@ -85,50 +85,6 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
         shutil.copyfile(model_out_path, join(opt.savePath, 'model_best.pth.tar'))
 
 
-class RunningVariables:
-    """Global variables to run the code.
-
-    This class assembles the running variables for training the model.
-
-    Attributes:
-        _opt: arguments obtained from the command line.
-    """
-    def __init__(self, _opt):
-        self.opt = _opt
-        self.train_set = 0
-        self.whole_train_set = 0
-        self.whole_training_data_loader = 0
-        self.whole_test_set = 0
-        self.dataset = 0
-        self.model = 0
-        self.encoder_dim = 0
-        self.hook_dim = 0
-        self.device = 0
-        self.optimizer = None
-        self.criterion = None
-
-    def set_dataset(self, train_set_, whole_train_set_, whole_training_data_loader_, whole_test_set_, dataset_):
-        self.train_set = train_set_
-        self.whole_train_set = whole_train_set_
-        self.whole_training_data_loader = whole_training_data_loader_
-        self.whole_test_set = whole_test_set_
-        self.dataset = dataset_
-
-    def set_model(self, model_, encoder_dim_, hook_dim_):
-        self.model = model_
-        self.encoder_dim = encoder_dim_
-        self.hook_dim = hook_dim_
-
-    def set_device(self, device_):
-        self.device = device_
-
-    def set_optimizer(self, optimizer_):
-        self.optimizer = optimizer_
-
-    def set_criterion(self, criterion_):
-        self.criterion = criterion_
-
-
 if __name__ == "__main__":
     # ignore warnings -- UserWarning: Loky-backed parallel loops cannot be called in a multiprocessing, setting n_jobs=1
     warnings.filterwarnings("ignore")
@@ -136,7 +92,7 @@ if __name__ == "__main__":
     # get arguments from the json file or the command
     opt = arguments.get_args()
     print(opt)
-    rv = RunningVariables(opt)
+    rv = arguments.RunningVariables(opt)
 
     # designate the device (CUDA) to train
     if not torch.cuda.is_available():
@@ -213,7 +169,7 @@ if __name__ == "__main__":
     if opt.mode.lower() == 'test':
         print('===> Running evaluation step')
         if opt.saveDecs:
-            GenerateDecs.generate(rv, opt, '/localresearch/PreciseLocalization/Dataset/YuQuanMultimodal/T3-Lib-res-a/')
+            GenerateDecs.generate(rv, opt)
         else:
             epoch = 1
             recalls = TestScript.test(rv, opt, epoch, write_tboard=False)

@@ -1,11 +1,15 @@
+"""
+Generate and save both global and local descriptors.
+"""
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from os import path
 from UnifiedModel import Backbone as mdl
+import cv2
 
 
-def generate(rv, opt, path_dir):
+def generate(rv, opt):
     numDb = rv.whole_test_set.dbStruct.numDb
     subdir = ['reference', 'query']
     test_data_loader = DataLoader(dataset=rv.whole_test_set, num_workers=opt.threads,
@@ -19,7 +23,7 @@ def generate(rv, opt, path_dir):
             rgb = rgb.to(rv.device)
             image_encoding = rv.model.encoder(rgb)
             if opt.withAttention:
-                image_encoding = rv.model.attention(image_encoding)
+                image_encoding, att = rv.model.attention(image_encoding)
                 vlad_encoding = rv.model.pool(image_encoding)
             else:
                 vlad_encoding = rv.model.pool(image_encoding)
@@ -29,8 +33,9 @@ def generate(rv, opt, path_dir):
 
             for i in range(vlad_encoding.size()[0]):
                 idx = int(indices[i]) % numDb
-                savepth = path.join(path_dir+subdir[int(indices[i]) // numDb], str(idx).zfill(6)+'.rgb.npy')
+                savepth = path.join(opt.saveDecsPath+subdir[int(indices[i]) // numDb], str(idx).zfill(6)+'.rgb.npy')
                 np.save(savepth, vlad_encoding[i, :].detach().cpu().numpy())
+                cv2.imwrite(savepth+'att.jpg', att[i, :].permute(1, 2, 0).detach().cpu().numpy())
 
             mdl.hook_features.clear()
             del rgb, image_encoding, vlad_encoding
