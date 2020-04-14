@@ -6,7 +6,7 @@ def loadDataSet(mode, split, whichdataset, threads, cacheBatchSize, margin):
     # Designate the dataset to train
     if whichdataset == 'pittsburgh':
         from DataSet import pittsburgh as dataset
-    elif whichdataset == 'tokyo247':
+    elif whichdataset == 'tokyo':
         from DataSet import tokyoTM as dataset
     elif whichdataset == 'multimodal':
         from DataSet import Multimodal as dataset

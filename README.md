@@ -20,3 +20,8 @@ The usage of the training and testing code.
 + `DimReduction.py`: train the dimension reduction layer (PCA with whitening) based on NetVLAD. 
 `GenerateDecs.py` generate and save the trained descriptors from network.
 
+## Dependencies
+Pytorch
+FAISS
+SciKit-Learn
+H5Py

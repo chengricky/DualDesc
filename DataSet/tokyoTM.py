@@ -1,24 +1,21 @@
 import torch
 import torchvision.transforms as transforms
 import torch.utils.data as data
-
 from os.path import join, exists
 from scipy.io import loadmat
 import numpy as np
 from collections import namedtuple
 from PIL import Image
-
+import faiss
 from sklearn.neighbors import NearestNeighbors
 import h5py
 
-root_dir = '/mnt/lustre/chengruiqi/tokyoTimeMachine/images/'
+root_dir = '/data/tokyoTimeMachine/images/'
 if not exists(root_dir):
     raise FileNotFoundError('root_dir is hardcoded, please adjust to point to TokyoTimeMachine dataset')
 
-struct_dir = '/mnt/lustre/chengruiqi/tokyoTimeMachine/'
+struct_dir = '/data/tokyoTimeMachine/'
 
-
-# queries_dir = join(root_dir, 'queries_real')
 
 def input_transform():
     return transforms.Compose([
@@ -32,22 +29,29 @@ def get_whole_training_set(onlyDB=False):
     return WholeDatasetFromStruct(structFile,
                                   input_transform=input_transform(), onlyDB=onlyDB)
 
+def get_whole_test_set():
+    structFile = join(struct_dir, 'tokyoTM_val.mat')
+    return WholeDatasetFromStruct(structFile, input_transform=input_transform())
+
 def get_whole_val_set():
     structFile = join(struct_dir, 'tokyoTM_val.mat')
     return WholeDatasetFromStruct(structFile,
                                   input_transform=input_transform())
+
 
 def get_training_query_set(margin=0.1):
     structFile = join(struct_dir, 'tokyoTM_train.mat')
     return QueryDatasetFromStruct(structFile,
                                   input_transform=input_transform(), margin=margin)
 
+
 def get_val_query_set():
     structFile = join(struct_dir, 'tokyoTM_val.mat')
     return QueryDatasetFromStruct(structFile,
                                   input_transform=input_transform())
 
-dbStruct = namedtuple('dbStruct', ['whichSet', 'dataset',
+
+dbStruct = namedtuple('dbStruct', ['whichSet', 'dataset', 'rootDir',
                                    'dbImage', 'utmDb', 'qImage', 'utmQ', 'numDb', 'numQ',
                                    'posDistThr', 'posDistSqThr', 'nonTrivPosDistSqThr', 'dbTimeStamp', 'qTimeStamp'])
 
@@ -61,9 +65,8 @@ def parse_dbStruct(path):
     whichSet = matStruct[0].item()
 
     dbImage = [f[0].item() for f in matStruct[1]]
-    utmDb = (matStruct[2].T)
-    dbTimeStamp = (matStruct[3].T)
-
+    utmDb = matStruct[2].T
+    dbTimeStamp = matStruct[3].T
 
     qImage = [f[0].item() for f in matStruct[4]]
     utmQ = matStruct[5].T
@@ -76,20 +79,39 @@ def parse_dbStruct(path):
     posDistSqThr = matStruct[10].item() #625
     nonTrivPosDistSqThr = matStruct[11].item() #100
 
-    if 'val' in path:
-        dbImageIdx = [i for i, img in enumerate(dbImage) if img not in qImage]
-        dbImageFiltered = [dbImage[idx] for idx in dbImageIdx]
-        utmDbFiltered = [utmDb[idx] for idx in dbImageIdx]
-        dbTimeStampFiltered = [dbTimeStamp[idx] for idx in dbImageIdx]
-        numDbFiltered = len(dbImageIdx)
+    # get rid of overlapped images
+    knn = NearestNeighbors(n_jobs=-1)
+    knn.fit(utmDb)
+    distances_pos, positives = knn.radius_neighbors(utmQ, radius=1)
+    # filter the Positives
 
-        return dbStruct(whichSet, dataset, dbImageFiltered, utmDbFiltered, qImage,
-                        utmQ, numDbFiltered, numQ, posDistThr,
-                        posDistSqThr, nonTrivPosDistSqThr, dbTimeStampFiltered, qTimeStamp)
-    else:
-        return dbStruct(whichSet, dataset, dbImage, utmDb, qImage,
-                        utmQ, numDb, numQ, posDistThr,
-                        posDistSqThr, nonTrivPosDistSqThr, dbTimeStamp, qTimeStamp)
+
+    for qIndex, distances in enumerate(distances_pos):
+        # keepIdx = []
+        stmpQ = qTimeStamp[qIndex]
+        posQ = positives[qIndex]
+        deleteEle = (np.squeeze(dbTimeStamp[posQ]) == stmpQ) & (distances == 0)
+        delIdx = posQ[np.where(deleteEle)]
+        if qIndex == 0:
+            delIdxs = delIdx
+        else:
+            delIdxs = np.concatenate((delIdxs, delIdx))
+    delIdxs = np.unique(delIdxs)
+
+    dbImageIdx = np.setdiff1d(np.arange(numDb), delIdxs)
+    dbImageFiltered = [dbImage[idx] for idx in dbImageIdx]
+    utmDbFiltered = [utmDb[idx] for idx in dbImageIdx]
+    dbTimeStampFiltered = [dbTimeStamp[idx] for idx in dbImageIdx]
+    numDbFiltered = len(dbImageIdx)
+
+    return dbStruct(whichSet, dataset, root_dir, np.array(dbImageFiltered), np.array(utmDbFiltered), qImage,
+                    utmQ, numDbFiltered, numQ, posDistThr,
+                    posDistSqThr, nonTrivPosDistSqThr, np.array(dbTimeStampFiltered), qTimeStamp)
+    # else:
+    #     return dbStruct(whichSet, dataset, dbImage, utmDb, qImage,
+    #                     utmQ, numDb, numQ, posDistThr,
+    #                     posDistSqThr, nonTrivPosDistSqThr, dbTimeStamp, qTimeStamp)
+
 
 class WholeDatasetFromStruct(data.Dataset):
     def __init__(self, structFile, input_transform=None, onlyDB=False):
@@ -106,7 +128,7 @@ class WholeDatasetFromStruct(data.Dataset):
         self.dataset = self.dbStruct.dataset
 
         self.positives = None
-        self.distances = None
+        # self.distances = None
 
     def __getitem__(self, index):
         img = Image.open(self.images[index])
@@ -119,26 +141,25 @@ class WholeDatasetFromStruct(data.Dataset):
     def __len__(self):
         return len(self.images)
 
-    def getPositives(self):
+    def get_positives(self):
         # positives for evaluation are those within trivial threshold range
         # fit NN to find them, search by radius
         if self.positives is None:
             knn = NearestNeighbors(n_jobs=-1)
             knn.fit(self.dbStruct.utmDb)
 
-            self.distances, self.positives = knn.radius_neighbors(self.dbStruct.utmQ,
+            distances_pos, self.positives = knn.radius_neighbors(self.dbStruct.utmQ,
                                                                   radius=self.dbStruct.posDistThr)
-            # if distances==0 with the same time stamp, then delete it from positives
-            # index = []
-            # for i in range(self.distances.shape[0]):
-            #     idx = []
-            #     for j in range(self.distances[i].shape[0]):
-            #         if self.distances[i][j] == 0 and \
-            #                 self.dbStruct.dbTimeStamp[self.positives[i][j]] == self.dbStruct.qTimeStamp[i]:
-            #             idx.append(j)
-            #     index.append(idx)
-            # for i in range(self.positives.shape[0]):
-            #     self.positives[i] = np.delete(self.positives[i], index[i])
+
+            # filter the Positives
+            # self.positives = []
+            # for qIndex, distances in enumerate(distances_pos):
+            #     # keepIdx = []
+            #     stmpQ = self.dbStruct.qTimeStamp[qIndex]
+            #     posQ = positives[qIndex]
+            #     deleteEle = (np.squeeze(self.dbStruct.dbTimeStamp[posQ]) == stmpQ) & (distances == 0)
+            #     keepIdx = posQ[np.where(~deleteEle)]
+            #     self.positives.append(keepIdx)
 
         return self.positives
 
@@ -189,22 +210,26 @@ class QueryDatasetFromStruct(data.Dataset):
         # fit NN to find them, search by radius
         knn = NearestNeighbors(n_jobs=-1, radius=self.dbStruct.nonTrivPosDistSqThr**0.5, algorithm='auto')
         knn.fit(self.dbStruct.utmDb)
-        distancePositives, nontrivalPositives = knn.radius_neighbors(self.dbStruct.utmQ, return_distance=True)
+        distancePositives, self.nontrivial_positives = knn.radius_neighbors(self.dbStruct.utmQ, return_distance=True)
 
-        # filter the non-Trival Postives
-        self.nontrivial_positives=[]
-        for qIndex, distances in enumerate(distancePositives):
-            keepIdx=[]
-            for idx, pairwiseDist in enumerate(distances):
-                dbIndex = nontrivalPositives[qIndex][idx]
-                if pairwiseDist > 1 and self.dbStruct.dbTimeStamp[dbIndex] != self.dbStruct.qTimeStamp[qIndex]:
-                    keepIdx.append(dbIndex)
-            self.nontrivial_positives.append(keepIdx)
+        # filter the non-trivial Positives
+        # self.nontrivial_positives = []
+        # for qIndex, distances in enumerate(distancePositives):
+        #     # keepIdx = []
+        #     stmpQ = self.dbStruct.qTimeStamp[qIndex]
+        #     posQ = nontrivalPositives[qIndex]
+        #     # print(np.squeeze(self.dbStruct.dbTimeStamp[posQ])  == stmpQ )
+        #     deleteEle = (np.squeeze(self.dbStruct.dbTimeStamp[posQ]) == stmpQ) & (distances == 0)
+        #     keepIdx = posQ[np.where(~deleteEle)]
+        #     # for idx, pairwiseDist in enumerate(distances):
+        #     #     dbIndex = posQ[idx]
+        #     #     if pairwiseDist != 0 or self.dbStruct.dbTimeStamp[dbIndex] != stmpQ:
+        #     #         keepIdx.append(dbIndex)
+        #     self.nontrivial_positives.append(keepIdx)
 
         # radius returns unsorted, sort once now so we dont have to later
         for i, posi in enumerate(self.nontrivial_positives):
             self.nontrivial_positives[i] = np.sort(posi)
-
 
         # its possible some queries don't have any non trivial potential positives
         # lets filter those out
@@ -224,6 +249,9 @@ class QueryDatasetFromStruct(data.Dataset):
 
         self.negCache = [np.empty((0,)) for _ in range(self.dbStruct.numQ)]
 
+        self.pool_size = 0
+        self.index_flat = None
+
     def __getitem__(self, index):
         index = self.queries[index]  # re-map index to match dataset
         with h5py.File(self.cache, mode='r') as h5:
@@ -233,9 +261,21 @@ class QueryDatasetFromStruct(data.Dataset):
             qFeat = h5feat[index + qOffset]
 
             posFeat = h5feat[self.nontrivial_positives[index].tolist()]
-            knn = NearestNeighbors(n_jobs=-1) # TODO replace with faiss?
-            knn.fit(posFeat)
-            dPos, posNN = knn.kneighbors(qFeat.reshape(1,-1), 1)
+
+            if self.pool_size == 0:
+                # netVLAD dimension
+                pool_size = posFeat.shape[1]
+                # build a flat (CPU) index
+                self.index_flat = faiss.IndexFlatL2(pool_size)
+                # make it into a gpu index
+                # self.gpu_index_flat = faiss.index_cpu_to_gpu(self.res, 0, index_flat)
+            else:
+                self.index_flat.reset()
+            # add vectors to the index
+            self.index_flat.add(posFeat)
+            # search for the nearest +ive
+            dPos, posNN = self.index_flat.search(qFeat.reshape(1, -1).astype('float32'), 1)
+
             dPos = dPos.item()
             posIndex = self.nontrivial_positives[index][posNN[0]].item()
 
@@ -243,10 +283,10 @@ class QueryDatasetFromStruct(data.Dataset):
             negSample = np.unique(np.concatenate([self.negCache[index], negSample]))
 
             negFeat = h5feat[negSample.tolist()]
-            knn.fit(negFeat)
-
-            dNeg, negNN = knn.kneighbors(qFeat.reshape(1, -1),
-                                         self.nNeg * 10)  # to quote netvlad paper code: 10x is hacky but fine
+            self.index_flat.reset()
+            self.index_flat.add(negFeat)
+            # to quote netVLAD paper code: 10x is hacky but fine
+            dNeg, negNN = self.index_flat.search(qFeat.reshape(1, -1).astype('float32'), self.nNeg*10)
             dNeg = dNeg.reshape(-1)
             negNN = negNN.reshape(-1)
 

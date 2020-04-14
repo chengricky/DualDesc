@@ -2,7 +2,43 @@ import numpy as np
 import cv2
 import math
 from torchvision.transforms.functional import adjust_brightness, adjust_contrast
+from torchvision.transforms import ColorJitter
 from PIL import Image
+
+
+def data_aug(img, configs):
+    # 数据增强
+    jitter = ColorJitter(configs['brightness'], configs['contrast'], configs['saturation'], configs['hue'])
+    name2func = {
+        # 'blur': lambda img_in: gaussian_blur(img_in, configs['blur_range']),
+        # Randomly change the brightness, contrast and saturation of an image.
+        'jitter': lambda img_in: jitter(img_in), # np.asarray(jitter(img_in)),
+        # 'noise': lambda img_in: add_noise(img_in),
+        'none': lambda img_in: img_in,
+        # 'sp_gaussian_noise': lambda img_in: additive_gaussian_noise(img_in, configs['sp_gaussian_range']),
+        # 'sp_speckle_noise': lambda img_in: additive_speckle_noise(img_in, configs['sp_speckle_prob_range']),
+        # 'sp_additive_shade': lambda img_in: additive_shade(img_in, configs['sp_nb_ellipse'],
+        #                                                    configs['sp_transparency_range'],
+        #                                                    configs['sp_kernel_size_range']),
+        'motion_blur': lambda img_in: motion_blur(img_in, configs['sp_max_kernel_size']),
+        # 'resize_blur': lambda img_in: resize_blur(img_in, configs['resize_blur_min_ratio'])
+        'random_rotate_img': lambda img_in: random_rotate_img(img_in, configs["min_angle"], configs["max_angle"])
+    }
+
+    # ['random_rotate_img','jitter','motion_blur','none']
+    if configs['augment_num'] < 0:
+        return img
+    elif len(configs['augment_classes']) > configs['augment_num']:
+        augment_classes = np.random.choice(configs['augment_classes'], configs['augment_num'],
+                                           False, p=configs['augment_classes_weight'])
+    elif len(configs['augment_classes']) <= configs['augment_num']:
+        augment_classes = configs["augment_classes"]
+    else:
+        return img
+
+    for ac in augment_classes:
+        img = name2func[ac](img)
+    return img
 
 
 def random_rotate(img, pts, rot_ang_min, rot_ang_max):

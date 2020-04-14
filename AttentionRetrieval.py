@@ -172,7 +172,7 @@ if __name__ == "__main__":
             GenerateDecs.generate(rv, opt)
         else:
             epoch = 1
-            recalls = TestScript.test(rv, opt, epoch, write_tboard=False)
+            recalls = TestScript.test(rv, None, opt, epoch, write_tboard=False)
 
     elif opt.mode.lower() == 'cluster':
         print('===> Calculating descriptors and clusters')
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 scheduler.step(epoch)
             TrainScript.train(rv, writer, opt, epoch)
             if (epoch % opt.evalEvery) == 0:
-                recalls = TestScript.test(rv, opt, epoch, write_tboard=True)
+                recalls = TestScript.test(rv, writer, opt, epoch, write_tboard=True)
                 is_best = recalls[5] > best_score
                 if is_best:
                     not_improved = 0

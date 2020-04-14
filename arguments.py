@@ -29,7 +29,7 @@ parser.add_argument('--dataPath', type=str, default='data/', help='Path for cent
 parser.add_argument('--runsPath', type=str, default='runs/', help='Path to save runs to.')
 parser.add_argument('--savePath', type=str, default='checkpoints_res18_pitts30/',
                     help='Path to save checkpoints to in logdir. Default=checkpoints/')
-parser.add_argument('--cachePath', type=str, default='/tmp/', help='Path to save cache to.')
+parser.add_argument('--cachePath', type=str, default='/data/tmp', help='Path to save cache to.')
 parser.add_argument('--resume', type=str, default='',
                     help='Path to load checkpoint from, for resuming training or testing.')
 parser.add_argument('--ckpt', type=str, default='latest',
@@ -38,7 +38,7 @@ parser.add_argument('--evalEvery', type=int, default=1,
                     help='Do a validation set run, and save, every N epochs.')
 parser.add_argument('--patience', type=int, default=5, help='Patience for early stopping. 0 is off.')
 parser.add_argument('--dataset', type=str, default='pittsburgh',
-                    help='Dataset to use', choices=['pittsburgh', 'tokyo247', 'highway', 'GB', 'multimodal'])
+                    help='Dataset to use', choices=['pittsburgh', 'tokyo', 'highway', 'GB', 'multimodal'])
 parser.add_argument('--arch', type=str, default='resnet18',
                     help='basenetwork to use', choices=['vgg16', 'alexnet', 'resnet18', 'resnet34', 'resnet50',
                                                         'mobilenet2', 'shufflenet2'])
