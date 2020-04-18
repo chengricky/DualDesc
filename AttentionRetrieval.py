@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     elif opt.mode.lower() == 'train':
         print('===> Training model')
         writer = SummaryWriter(
-            logdir=join(opt.runsPath, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + opt.arch + '_' + opt.pooling))
+            log_dir=join(opt.runsPath, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + opt.arch + '_' + opt.pooling))
 
         # write checkpoints in logdir
         logdir = writer.file_writer.get_logdir()

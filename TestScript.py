@@ -128,7 +128,7 @@ def test(rv, writer, opt, epoch=0, write_tboard=False):
                 if np.any(np.in1d(pred[:n], gt[qIx])):
                     correct_at_n[i:] += 1
                     break
-    recall_at_n = correct_at_n / gtValid  # eval_set.dbStruct.numQ
+    recall_at_n = correct_at_n / gtValid
 
     recalls = {}  # make dict for output
     for i, n in enumerate(n_values):

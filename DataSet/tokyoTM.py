@@ -80,37 +80,44 @@ def parse_dbStruct(path):
     nonTrivPosDistSqThr = matStruct[11].item() #100
 
     # get rid of overlapped images
-    knn = NearestNeighbors(n_jobs=-1)
-    knn.fit(utmDb)
-    distances_pos, positives = knn.radius_neighbors(utmQ, radius=1)
-    # filter the Positives
+    if 'val.mat' in path:
+        knn = NearestNeighbors(n_jobs=-1)
+        knn.fit(utmDb)
+        distances_pos, positives = knn.radius_neighbors(utmQ, radius=1)
 
+        # filter the Positives
+        for qIndex, distances in enumerate(distances_pos):
+            # keepIdx = []
+            stmpQ = qTimeStamp[qIndex]
+            posQ = positives[qIndex]
+            deleteEle = (np.squeeze(dbTimeStamp[posQ]) == stmpQ) & (distances == 0)
+            delIdx = posQ[np.where(deleteEle)]
+            if qIndex == 0:
+                delIdxs = delIdx
+            else:
+                delIdxs = np.concatenate((delIdxs, delIdx))
+        delIdxs = np.unique(delIdxs)
 
-    for qIndex, distances in enumerate(distances_pos):
-        # keepIdx = []
-        stmpQ = qTimeStamp[qIndex]
-        posQ = positives[qIndex]
-        deleteEle = (np.squeeze(dbTimeStamp[posQ]) == stmpQ) & (distances == 0)
-        delIdx = posQ[np.where(deleteEle)]
-        if qIndex == 0:
-            delIdxs = delIdx
-        else:
-            delIdxs = np.concatenate((delIdxs, delIdx))
-    delIdxs = np.unique(delIdxs)
+        dbImageIdx = np.setdiff1d(np.arange(numDb), delIdxs)
+        dbImageFiltered = [dbImage[idx] for idx in dbImageIdx]
+        utmDbFiltered = [utmDb[idx] for idx in dbImageIdx]
+        dbTimeStampFiltered = [dbTimeStamp[idx] for idx in dbImageIdx]
+        numDbFiltered = len(dbImageIdx)
 
-    dbImageIdx = np.setdiff1d(np.arange(numDb), delIdxs)
-    dbImageFiltered = [dbImage[idx] for idx in dbImageIdx]
-    utmDbFiltered = [utmDb[idx] for idx in dbImageIdx]
-    dbTimeStampFiltered = [dbTimeStamp[idx] for idx in dbImageIdx]
-    numDbFiltered = len(dbImageIdx)
+        return dbStruct(whichSet, dataset, root_dir, np.array(dbImageFiltered), np.array(utmDbFiltered), qImage,
+                        utmQ, numDbFiltered, numQ, posDistThr,
+                        posDistSqThr, nonTrivPosDistSqThr, np.array(dbTimeStampFiltered), qTimeStamp)
 
-    return dbStruct(whichSet, dataset, root_dir, np.array(dbImageFiltered), np.array(utmDbFiltered), qImage,
-                    utmQ, numDbFiltered, numQ, posDistThr,
-                    posDistSqThr, nonTrivPosDistSqThr, np.array(dbTimeStampFiltered), qTimeStamp)
-    # else:
-    #     return dbStruct(whichSet, dataset, dbImage, utmDb, qImage,
-    #                     utmQ, numDb, numQ, posDistThr,
-    #                     posDistSqThr, nonTrivPosDistSqThr, dbTimeStamp, qTimeStamp)
+    else: # prevent negatives appearing in positive training tuples
+        dbImageIdx = [i for i, db in enumerate(dbImage) if db not in qImage]
+        dbImageFiltered = [dbImage[idx] for idx in dbImageIdx]
+        utmDbFiltered = [utmDb[idx] for idx in dbImageIdx]
+        dbTimeStampFiltered = [dbTimeStamp[idx] for idx in dbImageIdx]
+        numDbFiltered = len(dbImageIdx)
+
+        return dbStruct(whichSet, dataset, root_dir, np.array(dbImageFiltered), np.array(utmDbFiltered), qImage,
+                        utmQ, numDbFiltered, numQ, posDistThr,
+                        posDistSqThr, nonTrivPosDistSqThr, np.array(dbTimeStampFiltered), qTimeStamp)
 
 
 class WholeDatasetFromStruct(data.Dataset):
@@ -210,22 +217,22 @@ class QueryDatasetFromStruct(data.Dataset):
         # fit NN to find them, search by radius
         knn = NearestNeighbors(n_jobs=-1, radius=self.dbStruct.nonTrivPosDistSqThr**0.5, algorithm='auto')
         knn.fit(self.dbStruct.utmDb)
-        distancePositives, self.nontrivial_positives = knn.radius_neighbors(self.dbStruct.utmQ, return_distance=True)
+        distancePositives, nontrivalPositives = knn.radius_neighbors(self.dbStruct.utmQ, return_distance=True)
 
         # filter the non-trivial Positives
-        # self.nontrivial_positives = []
-        # for qIndex, distances in enumerate(distancePositives):
-        #     # keepIdx = []
-        #     stmpQ = self.dbStruct.qTimeStamp[qIndex]
-        #     posQ = nontrivalPositives[qIndex]
-        #     # print(np.squeeze(self.dbStruct.dbTimeStamp[posQ])  == stmpQ )
-        #     deleteEle = (np.squeeze(self.dbStruct.dbTimeStamp[posQ]) == stmpQ) & (distances == 0)
-        #     keepIdx = posQ[np.where(~deleteEle)]
-        #     # for idx, pairwiseDist in enumerate(distances):
-        #     #     dbIndex = posQ[idx]
-        #     #     if pairwiseDist != 0 or self.dbStruct.dbTimeStamp[dbIndex] != stmpQ:
-        #     #         keepIdx.append(dbIndex)
-        #     self.nontrivial_positives.append(keepIdx)
+        self.nontrivial_positives = []
+        for qIndex, distances in enumerate(distancePositives):
+            # keepIdx = []
+            stmpQ = self.dbStruct.qTimeStamp[qIndex]
+            posQ = nontrivalPositives[qIndex]
+            # print(np.squeeze(self.dbStruct.dbTimeStamp[posQ])  == stmpQ )
+            deleteEle = (np.squeeze(self.dbStruct.dbTimeStamp[posQ]) == stmpQ) & (distances == 0)
+            keepIdx = posQ[np.where(~deleteEle)]
+            # for idx, pairwiseDist in enumerate(distances):
+            #     dbIndex = posQ[idx]
+            #     if pairwiseDist != 0 or self.dbStruct.dbTimeStamp[dbIndex] != stmpQ:
+            #         keepIdx.append(dbIndex)
+            self.nontrivial_positives.append(keepIdx)
 
         # radius returns unsorted, sort once now so we dont have to later
         for i, posi in enumerate(self.nontrivial_positives):
