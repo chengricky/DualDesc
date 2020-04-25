@@ -2,35 +2,41 @@ from os.path import join, isfile
 import torch
 
 
-def loadckpt(ckpt, resume, start_epoch, mode, optLoaded, nGPU, device, model, withAttention):
+def load_ckpt(opt, device, model):
+    ckpt = opt.ckpt.lower()
+    resume = opt.resume
+    start_epoch = opt.start_epoch
+    mode = opt.mode.lower()
+    nGPU = opt.nGPU
+    withAttention = opt.withAttention
 
     if ckpt == 'latest':
-        resume_ckpt = join(resume, 'checkpoint.pth.tar')
+        resume_ckpt = join(resume, 'checkpoint_'+str(start_epoch)+'.pt')
     elif ckpt == 'best':
-        resume_ckpt = join(resume, 'model_best.pth.tar')
+        resume_ckpt = join(resume, 'model_best.pt')
     else:
         raise Exception("Undefined ckpt type")
 
     if isfile(resume_ckpt):
         print("=> loading checkpoint '{}'".format(resume_ckpt))
         checkpoint = torch.load(resume_ckpt, map_location=lambda storage, loc: storage)
-        start_epoch = min(checkpoint['epoch'], start_epoch)
+        start_epoch = checkpoint['epoch']
         best_metric = checkpoint['best_score']
 
         if mode == 'cluster':
             state_dict = {k: v for k, v in
                           checkpoint['state_dict'].items() if 'pool' not in k}
-            if optLoaded.nGPU == 1:
+            if nGPU == 1:
                 state_dict = {str.replace(k, 'encoder.', 'encoder.module.'): v for k, v in
                               state_dict.items()}  # add 'module.'
             model.load_state_dict(state_dict, strict=True)
         else:
-            if optLoaded.nGPU == 1 and nGPU > 1:
+            if nGPU == 1 and nGPU > 1:
                 state_dict = {str.replace(k, 'encoder.', 'encoder.module.'): v for k, v in
                               checkpoint['state_dict'].items()}
                 state_dict = {str.replace(k, 'pool.', 'pool.module.'): v for k, v in
                               state_dict.items()}  # add 'module.'
-            elif optLoaded.nGPU > 1 and nGPU == 1:
+            elif nGPU > 1 and nGPU == 1:
                 state_dict = {str.replace(k, 'encoder.module.', 'encoder.'): v for k, v in
                               checkpoint['state_dict'].items()}
                 state_dict = {str.replace(k, 'pool.module.', 'pool.'): v for k, v in
@@ -57,5 +63,6 @@ def loadckpt(ckpt, resume, start_epoch, mode, optLoaded, nGPU, device, model, wi
               .format(resume_ckpt, checkpoint['epoch']))
     else:
         print("=> no checkpoint found at '{}'".format(resume_ckpt))
+        raise RuntimeError('No Checkpoint.')
 
     return model, start_epoch, best_metric

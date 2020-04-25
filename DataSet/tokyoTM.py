@@ -109,15 +109,15 @@ def parse_dbStruct(path):
                         posDistSqThr, nonTrivPosDistSqThr, np.array(dbTimeStampFiltered), qTimeStamp)
 
     else: # prevent negatives appearing in positive training tuples
-        dbImageIdx = [i for i, db in enumerate(dbImage) if db not in qImage]
-        dbImageFiltered = [dbImage[idx] for idx in dbImageIdx]
-        utmDbFiltered = [utmDb[idx] for idx in dbImageIdx]
-        dbTimeStampFiltered = [dbTimeStamp[idx] for idx in dbImageIdx]
-        numDbFiltered = len(dbImageIdx)
+        # dbImageIdx = [i for i, db in enumerate(dbImage) if db not in qImage]
+        # dbImageFiltered = [dbImage[idx] for idx in dbImageIdx]
+        # utmDbFiltered = [utmDb[idx] for idx in dbImageIdx]
+        # dbTimeStampFiltered = [dbTimeStamp[idx] for idx in dbImageIdx]
+        # numDbFiltered = len(dbImageIdx)
 
-        return dbStruct(whichSet, dataset, root_dir, np.array(dbImageFiltered), np.array(utmDbFiltered), qImage,
-                        utmQ, numDbFiltered, numQ, posDistThr,
-                        posDistSqThr, nonTrivPosDistSqThr, np.array(dbTimeStampFiltered), qTimeStamp)
+        return dbStruct(whichSet, dataset, root_dir, dbImage, utmDb, qImage,
+                        utmQ, numDb, numQ, posDistThr,
+                        posDistSqThr, nonTrivPosDistSqThr, dbTimeStamp, qTimeStamp)
 
 
 class WholeDatasetFromStruct(data.Dataset):

@@ -59,9 +59,7 @@ def get_args():
     # read arguments from command
     opt = parser.parse_args()
     # read the following arguments from or json file
-    restore_var = ['lr', 'lrStep', 'lrGamma', 'weightDecay', 'momentum', 'nGPU',
-                   'runsPath', 'savePath', 'arch', 'num_clusters', 'pooling', 'optim',
-                   'margin', 'seed', 'patience']
+    restore_var = ['runsPath', 'savePath', 'arch', 'num_clusters', 'pooling' ]
     if opt.resume:
         opt_loaded = read_arguments(opt, parser, restore_var)
         return opt_loaded

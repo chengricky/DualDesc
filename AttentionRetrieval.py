@@ -78,11 +78,11 @@ def get_clusters(cluster_set):
         print('====> Done!')
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    model_out_path = join(opt.savePath, filename)
+def save_checkpoint(state, is_best, filename='checkpoint_'):
+    model_out_path = join(opt.savePath, filename+str(state['epoch'])+'.pt')
     torch.save(state, model_out_path)
     if is_best:
-        shutil.copyfile(model_out_path, join(opt.savePath, 'model_best.pth.tar'))
+        shutil.copyfile(model_out_path, join(opt.savePath, 'model_best.pt'))
 
 
 if __name__ == "__main__":
@@ -125,9 +125,7 @@ if __name__ == "__main__":
 
     # Read the previous training results
     if opt.resume:
-        model, start_epoch, best_metric = loadCkpt.loadckpt(opt.ckpt.lower(), opt.resume, opt.start_epoch,
-                                                            opt.mode.lower(), opt, opt.nGPU, device, model,
-                                                            opt.withAttention)
+        model, start_epoch, best_metric = loadCkpt.load_ckpt(opt, device, model)
     else:
         model = model.to(device)
     rv.set_model(model, encoder_dim, hook_dim)
@@ -137,6 +135,7 @@ if __name__ == "__main__":
         if opt.optim.upper() == 'ADAM':
             optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                                    lr=opt.lr, weight_decay=opt.weightDecay)  # , betas=(0,0.9))
+
             rv.set_optimizer(optimizer)
 
         elif opt.optim.upper() == 'SGD':
@@ -196,7 +195,7 @@ if __name__ == "__main__":
         print('===> Saving state to:', logdir)
 
         not_improved = 0
-        best_score = 0
+        best_score = best_metric if opt.resume else 0
         for epoch in range(opt.start_epoch + 1, opt.nEpochs + 1):
             if opt.optim.upper() == 'SGD':
                 scheduler.step(epoch)

@@ -1,7 +1,7 @@
 .idea/
 data/
 DenseDesc/data/
-runs/
+runs*/
 checkpoints*/
 ckpt_*/
 *.pth.tar
@@ -115,3 +115,5 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+将删除 runs_1/
+将删除 runs_res18_tokyo_n2/

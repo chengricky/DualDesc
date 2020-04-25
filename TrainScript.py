@@ -37,7 +37,7 @@ def train(rv, writer, opt, epoch):
                 for iteration, (input, indices) in enumerate(rv.whole_training_data_loader, 1):
                     image_encoding = rv.model.encoder(input.to(rv.device))
                     if opt.withAttention:
-                        image_encoding = rv.model.attention(image_encoding)
+                        image_encoding, _ = rv.model.attention(image_encoding)
                         vlad_encoding = rv.model.pool(image_encoding)
                         del image_encoding
                     else:
@@ -76,7 +76,7 @@ def train(rv, writer, opt, epoch):
             image_encoding = rv.model.encoder(input.to(rv.device))
             del input
             if opt.withAttention:
-                image_encoding = rv.model.attention(image_encoding)
+                image_encoding, _ = rv.model.attention(image_encoding)
                 vlad_encoding = rv.model.pool(image_encoding)
                 del image_encoding
             else:
