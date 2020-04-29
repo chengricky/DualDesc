@@ -1,7 +1,9 @@
 .idea/
 data/
 DenseDesc/data/
+runs/
 runs*/
+DenseDesc/
 checkpoints*/
 ckpt_*/
 *.pth.tar
