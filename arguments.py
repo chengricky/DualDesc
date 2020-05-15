@@ -25,7 +25,7 @@ parser.add_argument('--weightDecay', type=float, default=0.001, help='Weight dec
 parser.add_argument('--momentum', type=float, default=0.9, help='Momentum for SGD.')
 parser.add_argument('--threads', type=int, default=8, help='Number of threads for each data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='Random seed to use.')
-parser.add_argument('--dataPath', type=str, default='data/', help='Path for centroeid data.')
+parser.add_argument('--dataPath', type=str, default='data/', help='Path for centroid data.')
 parser.add_argument('--runsPath', type=str, default='runs/', help='Path to save runs to.')
 parser.add_argument('--savePath', type=str, default='checkpoints_res18_pitts30/',
                     help='Path to save checkpoints to in logdir. Default=checkpoints/')
@@ -46,7 +46,7 @@ parser.add_argument('--pooling', type=str, default='netvlad', help='type of pool
                     choices=['netvlad', 'max', 'avg'])
 parser.add_argument('--num_clusters', type=int, default=64, help='Number of NetVlad clusters. Default=64')
 parser.add_argument('--margin', type=float, default=0.1, help='Margin for triplet loss. Default=0.1')
-parser.add_argument('--split', type=str, default='test', help='Data split to use for testing. Default is val',
+parser.add_argument('--split', type=str, default='val', help='Data split to use for testing. Default is val',
                     choices=['test', 'test250k', 'train', 'val'])
 parser.add_argument('--fromscratch', action='store_true', help='Train from scratch rather than using pretrained models')
 parser.add_argument('--numTrain', type=int, default=2, help='the number of trained layers of basenet')
@@ -59,7 +59,7 @@ def get_args():
     # read arguments from command
     opt = parser.parse_args()
     # read the following arguments from or json file
-    restore_var = ['runsPath', 'savePath', 'arch', 'num_clusters', 'pooling' ]
+    restore_var = ['arch', 'num_clusters', 'pooling']
     if opt.resume:
         opt_loaded = read_arguments(opt, parser, restore_var)
         return opt_loaded

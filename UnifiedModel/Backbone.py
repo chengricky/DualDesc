@@ -99,10 +99,17 @@ def baseResNet(pre_trained=True, type=50, num_train=2):
 
     # children()只包括了第一代儿子模块，get rid of the last two layers: AvePool & fc
     layers = list(modelResNet.children())[:-2]
+
+    if num_train <= 0:
+        for layer in layers:
+            for p in layer.parameters():
+                p.requires_grad = False
     # 让最后1\2个block参与netVLAD训练
-    for l in layers[:-1 * num_train]:
-        for p in l.parameters():
-            p.requires_grad = False
+    else:
+        for l in layers[:-1 * num_train]:
+            for p in l.parameters():
+                p.requires_grad = False
+
     return layers
 
 
@@ -222,7 +229,7 @@ def get_netavlad_model(opt, train_set, whole_test_set):
     # 初始化model中的pooling模块
     if mode != 'cluster':
         if pooling == 'netvlad':
-            net_vlad = netvlad.NetVLAD(num_clusters=num_clusters, dim=encoder_dim)
+            net_vlad = netvlad.NetVLAD(num_clusters=num_clusters, dim=encoder_dim, normalize_input=True)
             if not resume:
                 if mode == 'train':
                     initcache = join(dataPath, 'centroids', arch + '_' + train_set.dataset + '_' + str(

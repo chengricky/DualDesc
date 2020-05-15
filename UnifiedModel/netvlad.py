@@ -33,6 +33,7 @@ class NetVLAD(nn.Module):
         self.conv = nn.Conv2d(dim, num_clusters, kernel_size=(1, 1), bias=True)
         self.centroids = nn.Parameter(torch.rand(num_clusters, dim))
 
+
     def init_params(self, clsts, traindescs):
         index = faiss.IndexFlatL2(self.dim)
         index.add(traindescs)
@@ -48,7 +49,7 @@ class NetVLAD(nn.Module):
         self.conv.weight = nn.Parameter((2.0 * alpha * self.centroids).unsqueeze(-1).unsqueeze(-1))
         self.conv.bias = nn.Parameter(- alpha * self.centroids.norm(dim=1))
 
-    def forward(self, x):
+    def forward(self, x, attention_score=None): #(N,1,H,W)
         N, C = x.shape[:2]
 
         if self.normalize_input:
@@ -65,11 +66,14 @@ class NetVLAD(nn.Module):
             vlad = torch.zeros([N, self.num_clusters, C], dtype=x.dtype, layout=x.layout, device=x.device)
             del x
             # slower than non-looped, but lower memory usage
-            for C in range(self.num_clusters):
-                residual = x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - \
-                        self.centroids[C:C+1, :].expand(x_flatten.size(-1), -1, -1).permute(1, 2, 0).unsqueeze(0)
-                residual *= soft_assign[:, C:C+1, :].unsqueeze(2)
-                vlad[:, C:C+1, :] = residual.sum(dim=-1)
+            for Ck in range(self.num_clusters):
+                # x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - \
+                residual = x_flatten.unsqueeze(1) - self.centroids[Ck:Ck+1, :].expand(x_flatten.size(-1), -1, -1).permute(1, 2, 0).unsqueeze(0)
+                if attention_score is None:
+                    residual *= soft_assign[:, Ck:Ck+1, :].unsqueeze(2)
+                else:
+                    residual *= soft_assign[:, Ck:Ck + 1, :].unsqueeze(2)*attention_score.view(N, 1, -1).unsqueeze(1)
+                vlad[:, Ck:Ck+1, :] = residual.sum(dim=-1)
             del x_flatten, soft_assign
         else:
             residual = x_flatten.expand(self.num_clusters, -1, -1, -1).permute(1, 0, 2, 3) - \
