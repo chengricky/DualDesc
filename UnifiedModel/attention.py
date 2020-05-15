@@ -26,7 +26,7 @@ _SUPPORTED_ATTENTION_NONLINEARITY = ['softplus']
 class DELF(nn.Module):
     """Attention Block layer implementation"""
 
-    def __init__(self, numc_featmap, remain, attention_type=_SUPPORTED_ATTENTION_TYPES[0],
+    def __init__(self, numc_featmap, remain, attention_type=_SUPPORTED_ATTENTION_TYPES[1],
                  attention_nonlinear=_SUPPORTED_ATTENTION_NONLINEARITY[0], kernel=1):
         """
         Args:
@@ -61,9 +61,7 @@ class DELF(nn.Module):
         if self.attention_type not in _SUPPORTED_ATTENTION_TYPES:
             raise ValueError('Unknown attention_type.')
         if self.attention_type == 'use_l2_normalized_feature':
-            attention_feature_map = F.normalize(x, p=2, dim=1)
-        elif self.attention_type == 'use_default_input_feature':
-            attention_feature_map = x
+            x = F.normalize(x, p=2, dim=1)
 
         x = self.conv1(x)
         x = self.relu(x)
@@ -74,7 +72,7 @@ class DELF(nn.Module):
         if self.attention_nonlinear == 'softplus':
             x = self.softplus(x)
 
-        x_map = torch.mul(attention_feature_map, x.expand(-1, attention_feature_map.shape[1], -1, -1))
+        # x_map = torch.mul(attention_feature_map, x.expand(-1, attention_feature_map.shape[1], -1, -1))
 
         # attention_outputs = self.perform_attention(attention_feature_map, feature_map)
         # attention_feat, attention_prob, attention_score = attention_outputs
@@ -90,5 +88,5 @@ class DELF(nn.Module):
         # indices = indices.expand(-1, Cf, -1)
         # feature_map_filtered = feature_map_flatten.gather(2, indices).unsqueeze(-1)
 
-        return x_map, x
+        return x
 

@@ -39,19 +39,18 @@ def test(rv, writer, opt, epoch=0, write_tboard=False):
             image_encoding = rv.model.encoder(input)
             del input
             if opt.withAttention:
-                image_encoding_a, attention_score = rv.model.attention(image_encoding)
-                vlad_encoding = rv.model.pool(image_encoding, attention_score)
-                del image_encoding_a, image_encoding
+                attention_score = rv.model.attention(image_encoding)
+                image_encoding = rv.model.pool(image_encoding, attention_score)
+                del attention_score
             else:
-                vlad_encoding = rv.model.pool(image_encoding)
-                del image_encoding
+                image_encoding = rv.model.pool(image_encoding)
 
             # vlad_encoding = wpca(vlad_encoding.unsqueeze(-1).unsqueeze(-1)).squeeze(-1).squeeze(-1)
-            dbFeat[indices.detach().numpy(), :] = vlad_encoding.detach().cpu().numpy().astype('float32')
+            dbFeat[indices.detach().numpy(), :] = image_encoding.detach().cpu().numpy().astype('float32')
             if iteration % 50 == 0 or len(test_data_loader) <= 10:
                 print("==> Batch ({}/{})".format(iteration, len(test_data_loader)), flush=True)
 
-            del vlad_encoding
+            del image_encoding
             # torch.cuda.empty_cache()
 
     del test_data_loader

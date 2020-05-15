@@ -23,7 +23,7 @@ def generate(rv, opt):
             rgb = rgb.to(rv.device)
             image_encoding = rv.model.encoder(rgb)
             if opt.withAttention:
-                image_encoding, att = rv.model.attention(image_encoding)
+                att = rv.model.attention(image_encoding)
                 vlad_encoding = rv.model.pool(image_encoding)
             else:
                 vlad_encoding = rv.model.pool(image_encoding)

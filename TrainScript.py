@@ -37,14 +37,14 @@ def train(rv, writer, opt, epoch):
                 for iteration, (input, indices) in enumerate(rv.whole_training_data_loader, 1):
                     image_encoding = rv.model.encoder(input.to(rv.device))
                     if opt.withAttention:
-                        image_encoding_a, attention_score = rv.model.attention(image_encoding)
-                        vlad_encoding = rv.model.pool(image_encoding, attention_score)
-                        del image_encoding_a, image_encoding
+                        attention_score = rv.model.attention(image_encoding)
+                        image_encoding = rv.model.pool(image_encoding, attention_score)
+                        del attention_score
                     else:
-                        vlad_encoding = rv.model.pool(image_encoding)
-                        del image_encoding
-                    h5feat[indices.detach().numpy(), :] = vlad_encoding.detach().cpu().numpy()
-                    del input, vlad_encoding
+                        image_encoding = rv.model.pool(image_encoding)
+
+                    h5feat[indices.detach().numpy(), :] = image_encoding.detach().cpu().numpy()
+                    del input, image_encoding
 
         elapsed = time.time() - start_time
         # used to store Tensors on the GPU
@@ -76,15 +76,14 @@ def train(rv, writer, opt, epoch):
             image_encoding = rv.model.encoder(input.to(rv.device))
             del input
             if opt.withAttention:
-                image_encoding_a, attention_score = rv.model.attention(image_encoding)
-                vlad_encoding = rv.model.pool(image_encoding, attention_score)
-                del image_encoding_a, image_encoding
+                attention_score = rv.model.attention(image_encoding)
+                image_encoding = rv.model.pool(image_encoding, attention_score)
+                del attention_score
             else:
-                vlad_encoding = rv.model.pool(image_encoding)
-                del image_encoding
+                image_encoding = rv.model.pool(image_encoding)
 
-            vladQ, vladP, vladN = torch.split(vlad_encoding, [B, B, nNeg])
-            del vlad_encoding
+            vladQ, vladP, vladN = torch.split(image_encoding, [B, B, nNeg])
+            del image_encoding
 
             rv.optimizer.zero_grad()
             # calculate loss for each Query, Positive, Negative triplet
