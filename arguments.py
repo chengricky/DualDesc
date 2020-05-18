@@ -45,7 +45,7 @@ parser.add_argument('--arch', type=str, default='resnet18',
 parser.add_argument('--pooling', type=str, default='netvlad', help='type of pooling to use',
                     choices=['netvlad', 'max', 'avg'])
 parser.add_argument('--num_clusters', type=int, default=64, help='Number of NetVlad clusters. Default=64')
-parser.add_argument('--margin', type=float, default=0.1, help='Margin for triplet loss. Default=0.1')
+parser.add_argument('--margin', type=float, default=0.316, help='Margin for triplet loss. Default=0.1')
 parser.add_argument('--split', type=str, default='val', help='Data split to use for testing. Default is val',
                     choices=['test', 'test250k', 'train', 'val'])
 parser.add_argument('--fromscratch', action='store_true', help='Train from scratch rather than using pretrained models')
@@ -57,14 +57,14 @@ parser.add_argument('--reduction', action='store_true', help='whether to perform
 
 def get_args():
     # read arguments from command
-    opt = parser.parse_args()
+    return parser.parse_args()
     # read the following arguments from or json file
-    restore_var = ['arch', 'num_clusters', 'pooling']
-    if opt.resume:
-        opt_loaded = read_arguments(opt, parser, restore_var)
-        return opt_loaded
-    else:
-        return opt
+    # restore_var = ['arch', 'num_clusters', 'pooling']
+    # if opt.resume:
+    #     opt_loaded = read_arguments(opt, parser, restore_var)
+    #     return opt_loaded
+    # else:
+    #     return opt
 
 
 def read_arguments(opt, parser_, restore_var):

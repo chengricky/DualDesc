@@ -160,8 +160,8 @@ if __name__ == "__main__":
         else:
             raise ValueError('Unknown optimizer: ' + opt.optim)
 
-        # original paper/code doesn't sqrt() the distances, we do, so sqrt() the margin, I think :D
-        criterion = nn.TripletMarginLoss(margin=opt.margin ** 0.5, p=2, size_average=False).to(device)  # reduction='sum'
+        # The L2 distances is used in PyTorch, instead of its square.
+        criterion = nn.TripletMarginLoss(margin=opt.margin, p=2, reduction='sum').to(device)  # size_average=False
         rv.set_criterion(criterion)
 
     # Execute test/cluster/train

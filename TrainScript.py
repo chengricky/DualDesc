@@ -34,17 +34,17 @@ def train(rv, writer, opt, epoch):
                 pool_size *= opt.num_clusters
             h5feat = h5.create_dataset("features", [len(rv.whole_train_set), pool_size], dtype=np.float32)
             with torch.no_grad():
-                for iteration, (input, indices) in enumerate(rv.whole_training_data_loader, 1):
-                    image_encoding = rv.model.encoder(input.to(rv.device))
+                for iteration, (inputTensor, indices) in enumerate(rv.whole_training_data_loader, 1):
+                    inputTensor = rv.model.encoder(inputTensor.to(rv.device))
                     if opt.withAttention:
-                        attention_score = rv.model.attention(image_encoding)
-                        image_encoding = rv.model.pool(image_encoding, attention_score)
+                        attention_score = rv.model.attention(inputTensor)
+                        inputTensor = rv.model.pool(inputTensor, attention_score)
                         del attention_score
                     else:
-                        image_encoding = rv.model.pool(image_encoding)
+                        inputTensor = rv.model.pool(inputTensor)
 
-                    h5feat[indices.detach().numpy(), :] = image_encoding.detach().cpu().numpy()
-                    del input, image_encoding
+                    h5feat[indices.detach().numpy(), :] = inputTensor.detach().cpu().numpy()
+                    del inputTensor
 
         elapsed = time.time() - start_time
         # used to store Tensors on the GPU
@@ -71,19 +71,19 @@ def train(rv, writer, opt, epoch):
 
             B, C, H, W = query.shape
             nNeg = torch.sum(negCounts)
-            input = torch.cat([query, positives, negatives])
+            tensor = torch.cat([query, positives, negatives])
             del query, positives, negatives
-            image_encoding = rv.model.encoder(input.to(rv.device))
-            del input
+            tensor = rv.model.encoder(tensor.to(rv.device))
+
             if opt.withAttention:
-                attention_score = rv.model.attention(image_encoding)
-                image_encoding = rv.model.pool(image_encoding, attention_score)
+                attention_score = rv.model.attention(tensor)
+                tensor = rv.model.pool(tensor, attention_score)
                 del attention_score
             else:
-                image_encoding = rv.model.pool(image_encoding)
+                tensor = rv.model.pool(tensor)
 
-            vladQ, vladP, vladN = torch.split(image_encoding, [B, B, nNeg])
-            del image_encoding
+            vladQ, vladP, vladN = torch.split(tensor, [B, B, nNeg])
+            del tensor
 
             rv.optimizer.zero_grad()
             # calculate loss for each Query, Positive, Negative triplet
@@ -91,12 +91,14 @@ def train(rv, writer, opt, epoch):
             # do it per query, per negative
             loss = 0
             for i, negCount in enumerate(negCounts):
-                for n in range(negCount):
-                    negIx = (torch.sum(negCounts[:i]) + n).item()
-                    loss += rv.criterion(vladQ[i:i + 1], vladP[i:i + 1], vladN[negIx:negIx + 1])
+                # for n in range(negCount):
+                #     negIx = (torch.sum(negCounts[:i]) + n).item()
+                #     loss += rv.criterion(vladQ[i:i + 1], vladP[i:i + 1], vladN[negIx:negIx + 1])
+                negIx = (torch.sum(negCounts[:i])).item()
+                loss += rv.criterion(vladQ[i].expand(negCount, -1), vladP[i].expand(negCount, -1), vladN[negIx:negIx+negCount])
             del vladQ, vladP, vladN
 
-            loss /= nNeg.float().to(rv.device)  # normalise by actual number of negatives
+            loss /= nNeg.float().to(rv.device)  # normalise by *actual* number of negatives
             loss.backward()
             rv.optimizer.step()
 

@@ -317,16 +317,11 @@ class QueryDatasetFromStruct(data.Dataset):
             self.index_flat.add(negFeat)
             # to quote netVLAD paper code: 10x is hacky but fine
             dNeg, negNN = self.index_flat.search(qFeat.reshape(1, -1).astype('float32'), self.nNeg*10)
-
-
-            # knn.fit(negFeat)
-            # dNeg, negNN = knn.kneighbors(qFeat.reshape(1,-1),
-            #         self.nNeg*10) # to quote netvlad paper code: 10x is hacky but fine
-            dNeg = dNeg.reshape(-1)
-            negNN = negNN.reshape(-1)
+            dNeg = np.sqrt(dNeg.reshape(-1)) # Faiss returns square of L2 norm
+            negNN = np.sqrt(negNN.reshape(-1))
 
             # try to find negatives that are within margin, if there aren't any return none
-            violatingNeg = dNeg < dPos + self.margin**0.5
+            violatingNeg = dNeg < dPos + self.margin#**0.5
      
             if np.sum(violatingNeg) < 1:
                 #if none are violating then skip this query
