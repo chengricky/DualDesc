@@ -306,7 +306,7 @@ class QueryDatasetFromStruct(data.Dataset):
             # knn = NearestNeighbors(n_jobs=-1)
             # knn.fit(posFeat)
             # dPos, posNN = knn.kneighbors(qFeat.reshape(1,-1), 1)
-            dPos = dPos.item()
+            dPos = np.sqrt(dPos).item()  # Faiss returns square of L2 norm
             posIndex = self.nontrivial_positives[index][posNN[0]].item()
 
             negSample = np.random.choice(self.potential_negatives[index], self.nNegSample)
@@ -318,7 +318,7 @@ class QueryDatasetFromStruct(data.Dataset):
             # to quote netVLAD paper code: 10x is hacky but fine
             dNeg, negNN = self.index_flat.search(qFeat.reshape(1, -1).astype('float32'), self.nNeg*10)
             dNeg = np.sqrt(dNeg.reshape(-1)) # Faiss returns square of L2 norm
-            negNN = np.sqrt(negNN.reshape(-1))
+            negNN = negNN.reshape(-1)
 
             # try to find negatives that are within margin, if there aren't any return none
             violatingNeg = dNeg < dPos + self.margin#**0.5
