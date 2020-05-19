@@ -96,13 +96,19 @@ if __name__ == "__main__":
 
     # designate the device (CUDA) to train
     if not torch.cuda.is_available():
-        raise Exception("No GPU found, program terminated")
-    device = torch.device("cuda")
-    random.seed(opt.seed)
-    np.random.seed(opt.seed)
-    torch.manual_seed(opt.seed)
-    torch.cuda.manual_seed(opt.seed)
-    rv.set_device(device)
+        if opt.mode is not 'test':
+            raise Exception("No GPU found, program terminated")
+        device = torch.device("cpu")
+        random.seed(opt.seed)
+        np.random.seed(opt.seed)
+        rv.set_device(device)
+    else:
+        device = torch.device("cuda")
+        random.seed(opt.seed)
+        np.random.seed(opt.seed)
+        torch.manual_seed(opt.seed)
+        torch.cuda.manual_seed(opt.seed)
+        rv.set_device(device)
 
     print('===> Loading dataset(s)')
     dataset_tuple = loadDataset.loadDataSet(opt.mode.lower(), opt.split.lower(), opt.dataset.lower(),
