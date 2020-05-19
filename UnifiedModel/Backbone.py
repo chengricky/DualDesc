@@ -72,7 +72,7 @@ def get_resnet(type):
     """
     loading ResNet-18/34/50 of trained on places365 (ImageNet) as basenet
     """
-    from DenseDesc.network import wideresnet
+    from UnifiedModel import wideresnet
     if type == 18:
         model_file = 'DenseDesc/wideresnet18_places365.pth.tar'
         model_res_net = wideresnet.resnet18(num_classes=365)

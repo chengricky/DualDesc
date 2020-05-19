@@ -13,7 +13,6 @@ from math import ceil
 from os import makedirs
 from os.path import join, exists
 
-import faiss
 import h5py
 import numpy as np
 import torch
@@ -70,6 +69,7 @@ def get_clusters(cluster_set):
 
         print('====> Clustering..')
         niter = 100
+        import faiss
         kmeans = faiss.Kmeans(encoder_dim, opt.num_clusters, niter=niter, verbose=False)
         kmeans.train(dbFeat[...])
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     # designate the device (CUDA) to train
     if not torch.cuda.is_available():
-        if opt.mode is not 'test':
+        if opt.mode is 'train':
             raise Exception("No GPU found, program terminated")
         device = torch.device("cpu")
         random.seed(opt.seed)

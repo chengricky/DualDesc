@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import faiss
 
 
 class NetVLAD(nn.Module):
@@ -33,8 +32,8 @@ class NetVLAD(nn.Module):
         self.conv = nn.Conv2d(dim, num_clusters, kernel_size=(1, 1), bias=True)
         self.centroids = nn.Parameter(torch.rand(num_clusters, dim))
 
-
     def init_params(self, clsts, traindescs):
+        import faiss
         index = faiss.IndexFlatL2(self.dim)
         index.add(traindescs)
         del traindescs

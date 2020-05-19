@@ -2,8 +2,6 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 import faiss
-import cv2
-from os.path import join
 
 
 def loadWPCA(reduced_dim):
