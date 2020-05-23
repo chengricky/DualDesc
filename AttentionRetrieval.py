@@ -95,7 +95,7 @@ if __name__ == "__main__":
     rv = arguments.RunningVariables(opt)
 
     # designate the device (CUDA) to train
-    if not torch.cuda.is_available():
+    if opt.nGPU == 0 or not torch.cuda.is_available():
         if opt.mode is 'train':
             raise Exception("No GPU found, program terminated")
         device = torch.device("cpu")
